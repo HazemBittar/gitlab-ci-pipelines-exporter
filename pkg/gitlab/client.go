@@ -1,20 +1,26 @@
 package gitlab
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/heptiolabs/healthcheck"
-	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/ratelimit"
 	"github.com/paulbellamy/ratecounter"
 	goGitlab "github.com/xanzy/go-gitlab"
+	"go.opentelemetry.io/otel"
+
+	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/ratelimit"
 )
 
 const (
-	userAgent = "gitlab-ci-pipelines-exporter"
+	userAgent  = "gitlab-ci-pipelines-exporter"
+	tracerName = "gitlab-ci-pipelines-exporter"
 )
 
 // Client ..
@@ -28,9 +34,12 @@ type Client struct {
 
 	RateLimiter       ratelimit.Limiter
 	RateCounter       *ratecounter.RateCounter
-	RequestsCounter   uint64
+	RequestsCounter   atomic.Uint64
 	RequestsLimit     int
 	RequestsRemaining int
+
+	version GitLabVersion
+	mutex   sync.RWMutex
 }
 
 // ClientConfig ..
@@ -89,13 +98,26 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 }
 
 // ReadinessCheck ..
-func (c *Client) ReadinessCheck() healthcheck.Check {
+func (c *Client) ReadinessCheck(ctx context.Context) healthcheck.Check {
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "gitlab:ReadinessCheck")
+	defer span.End()
+
 	return func() error {
 		if c.Readiness.HTTPClient == nil {
 			return fmt.Errorf("readiness http client not configured")
 		}
 
-		resp, err := c.Readiness.HTTPClient.Get(c.Readiness.URL)
+		req, err := http.NewRequestWithContext(
+			ctx,
+			http.MethodGet,
+			c.Readiness.URL,
+			nil,
+		)
+		if err != nil {
+			return err
+		}
+
+		resp, err := c.Readiness.HTTPClient.Do(req)
 		if err != nil {
 			return err
 		}
@@ -104,7 +126,7 @@ func (c *Client) ReadinessCheck() healthcheck.Check {
 			return fmt.Errorf("HTTP error: empty response")
 		}
 
-		if err == nil && resp.StatusCode != 200 {
+		if err == nil && resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("HTTP error: %d", resp.StatusCode)
 		}
 
@@ -112,20 +134,39 @@ func (c *Client) ReadinessCheck() healthcheck.Check {
 	}
 }
 
-func (c *Client) rateLimit() {
-	ratelimit.Take(c.RateLimiter)
+func (c *Client) rateLimit(ctx context.Context) {
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "gitlab:rateLimit")
+	defer span.End()
+
+	ratelimit.Take(ctx, c.RateLimiter)
 	// Used for monitoring purposes
 	c.RateCounter.Incr(1)
-	c.RequestsCounter++
+	c.RequestsCounter.Add(1)
+}
+
+func (c *Client) UpdateVersion(version GitLabVersion) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.version = version
+}
+
+func (c *Client) Version() GitLabVersion {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
+	return c.version
 }
 
 func (c *Client) requestsRemaining(response *goGitlab.Response) {
-	remaining := response.Header.Get("ratelimit-remaining")
-	if remaining != "" {
+	if response == nil {
+		return
+	}
+
+	if remaining := response.Header.Get("ratelimit-remaining"); remaining != "" {
 		c.RequestsRemaining, _ = strconv.Atoi(remaining)
 	}
-	limit := response.Header.Get("ratelimit-limit")
-	if limit != "" {
+
+	if limit := response.Header.Get("ratelimit-limit"); limit != "" {
 		c.RequestsLimit, _ = strconv.Atoi(limit)
 	}
 }

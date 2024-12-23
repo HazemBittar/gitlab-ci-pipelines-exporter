@@ -1,17 +1,34 @@
 package ratelimit
 
 import (
-	localRatelimit "go.uber.org/ratelimit"
+	"context"
+	"time"
+
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/time/rate"
 )
 
 // Local ..
 type Local struct {
-	localRatelimit.Limiter
+	*rate.Limiter
 }
 
 // NewLocalLimiter ..
-func NewLocalLimiter(maxRPS int) Limiter {
+func NewLocalLimiter(maximumRPS, burstableRPS int) Limiter {
 	return Local{
-		localRatelimit.New(maxRPS),
+		rate.NewLimiter(rate.Limit(maximumRPS), burstableRPS),
 	}
+}
+
+// Take ..
+func (l Local) Take(ctx context.Context) time.Duration {
+	start := time.Now()
+
+	if err := l.Limiter.Wait(ctx); err != nil {
+		log.WithContext(ctx).
+			WithError(err).
+			Fatal()
+	}
+
+	return start.Sub(time.Now())
 }

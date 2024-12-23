@@ -1,7 +1,7 @@
 package schemas
 
 import (
-	"time"
+	"strings"
 
 	goGitlab "github.com/xanzy/go-gitlab"
 )
@@ -15,7 +15,9 @@ type Job struct {
 	DurationSeconds       float64
 	QueuedDurationSeconds float64
 	Status                string
+	TagList               string
 	ArtifactSize          float64
+	FailureReason         string
 	Runner                Runner
 }
 
@@ -29,21 +31,17 @@ type Jobs map[string]Job
 
 // NewJob ..
 func NewJob(gj goGitlab.Job) Job {
-	var artifactSize float64
+	var (
+		artifactSize float64
+		timestamp    float64
+	)
+
 	for _, artifact := range gj.Artifacts {
 		artifactSize += float64(artifact.Size)
 	}
 
-	var timestamp float64
 	if gj.CreatedAt != nil {
 		timestamp = float64(gj.CreatedAt.Unix())
-	}
-
-	var queued time.Duration
-	if gj.StartedAt != nil && gj.CreatedAt != nil {
-		if gj.CreatedAt.Before(*gj.StartedAt) {
-			queued = gj.StartedAt.Sub(*gj.CreatedAt)
-		}
 	}
 
 	return Job{
@@ -52,9 +50,11 @@ func NewJob(gj goGitlab.Job) Job {
 		Stage:                 gj.Stage,
 		Timestamp:             timestamp,
 		DurationSeconds:       gj.Duration,
-		QueuedDurationSeconds: queued.Seconds(),
+		QueuedDurationSeconds: gj.QueuedDuration,
 		Status:                gj.Status,
+		TagList:               strings.Join(gj.TagList, ","),
 		ArtifactSize:          artifactSize,
+		FailureReason:         gj.FailureReason,
 
 		Runner: Runner{
 			Description: gj.Runner.Description,

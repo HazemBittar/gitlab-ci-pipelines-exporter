@@ -1,17 +1,19 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"reflect"
+
+	"github.com/prometheus/client_golang/prometheus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/gitlab"
 	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/schemas"
 	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/store"
-	"github.com/prometheus/client_golang/prometheus"
-	log "github.com/sirupsen/logrus"
 )
 
-// Registry wraps a pointer of prometheus.Registry
+// Registry wraps a pointer of prometheus.Registry.
 type Registry struct {
 	*prometheus.Registry
 
@@ -33,8 +35,8 @@ type Registry struct {
 // RegistryCollectors ..
 type RegistryCollectors map[schemas.MetricKind]prometheus.Collector
 
-// NewRegistry initialize a new registry
-func NewRegistry() *Registry {
+// NewRegistry initialize a new registry.
+func NewRegistry(ctx context.Context) *Registry {
 	r := &Registry{
 		Registry: prometheus.NewRegistry(),
 		Collectors: RegistryCollectors{
@@ -60,19 +62,34 @@ func NewRegistry() *Registry {
 			schemas.MetricKindRunCount:                             NewCollectorRunCount(),
 			schemas.MetricKindStatus:                               NewCollectorStatus(),
 			schemas.MetricKindTimestamp:                            NewCollectorTimestamp(),
+			schemas.MetricKindTestReportTotalTime:                  NewCollectorTestReportTotalTime(),
+			schemas.MetricKindTestReportTotalCount:                 NewCollectorTestReportTotalCount(),
+			schemas.MetricKindTestReportSuccessCount:               NewCollectorTestReportSuccessCount(),
+			schemas.MetricKindTestReportFailedCount:                NewCollectorTestReportFailedCount(),
+			schemas.MetricKindTestReportSkippedCount:               NewCollectorTestReportSkippedCount(),
+			schemas.MetricKindTestReportErrorCount:                 NewCollectorTestReportErrorCount(),
+			schemas.MetricKindTestSuiteTotalTime:                   NewCollectorTestSuiteTotalTime(),
+			schemas.MetricKindTestSuiteTotalCount:                  NewCollectorTestSuiteTotalCount(),
+			schemas.MetricKindTestSuiteSuccessCount:                NewCollectorTestSuiteSuccessCount(),
+			schemas.MetricKindTestSuiteFailedCount:                 NewCollectorTestSuiteFailedCount(),
+			schemas.MetricKindTestSuiteSkippedCount:                NewCollectorTestSuiteSkippedCount(),
+			schemas.MetricKindTestSuiteErrorCount:                  NewCollectorTestSuiteErrorCount(),
+			schemas.MetricKindTestCaseExecutionTime:                NewCollectorTestCaseExecutionTime(),
+			schemas.MetricKindTestCaseStatus:                       NewCollectorTestCaseStatus(),
 		},
 	}
 
 	r.RegisterInternalCollectors()
 
 	if err := r.RegisterCollectors(); err != nil {
-		log.Fatal(err)
+		log.WithContext(ctx).
+			Fatal(err)
 	}
 
 	return r
 }
 
-// RegisterInternalCollectors declare our internal collectors to the registry
+// RegisterInternalCollectors declare our internal collectors to the registry.
 func (r *Registry) RegisterInternalCollectors() {
 	r.InternalCollectors.CurrentlyQueuedTasksCount = NewInternalCollectorCurrentlyQueuedTasksCount()
 	r.InternalCollectors.EnvironmentsCount = NewInternalCollectorEnvironmentsCount()
@@ -97,6 +114,7 @@ func (r *Registry) RegisterInternalCollectors() {
 
 // ExportInternalMetrics ..
 func (r *Registry) ExportInternalMetrics(
+	ctx context.Context,
 	g *gitlab.Client,
 	s store.Store,
 ) (err error) {
@@ -109,32 +127,32 @@ func (r *Registry) ExportInternalMetrics(
 		refsCount            int64
 	)
 
-	currentlyQueuedTasks, err = s.CurrentlyQueuedTasksCount()
+	currentlyQueuedTasks, err = s.CurrentlyQueuedTasksCount(ctx)
 	if err != nil {
 		return
 	}
 
-	executedTasksCount, err = s.ExecutedTasksCount()
+	executedTasksCount, err = s.ExecutedTasksCount(ctx)
 	if err != nil {
 		return
 	}
 
-	projectsCount, err = s.ProjectsCount()
+	projectsCount, err = s.ProjectsCount(ctx)
 	if err != nil {
 		return
 	}
 
-	environmentsCount, err = s.EnvironmentsCount()
+	environmentsCount, err = s.EnvironmentsCount(ctx)
 	if err != nil {
 		return
 	}
 
-	refsCount, err = s.RefsCount()
+	refsCount, err = s.RefsCount(ctx)
 	if err != nil {
 		return
 	}
 
-	metricsCount, err = s.MetricsCount()
+	metricsCount, err = s.MetricsCount(ctx)
 	if err != nil {
 		return
 	}
@@ -142,22 +160,24 @@ func (r *Registry) ExportInternalMetrics(
 	r.InternalCollectors.CurrentlyQueuedTasksCount.(*prometheus.GaugeVec).With(prometheus.Labels{}).Set(float64(currentlyQueuedTasks))
 	r.InternalCollectors.EnvironmentsCount.(*prometheus.GaugeVec).With(prometheus.Labels{}).Set(float64(environmentsCount))
 	r.InternalCollectors.ExecutedTasksCount.(*prometheus.GaugeVec).With(prometheus.Labels{}).Set(float64(executedTasksCount))
-	r.InternalCollectors.GitLabAPIRequestsCount.(*prometheus.GaugeVec).With(prometheus.Labels{}).Set(float64(g.RequestsCounter))
+	r.InternalCollectors.GitLabAPIRequestsCount.(*prometheus.GaugeVec).With(prometheus.Labels{}).Set(float64(g.RequestsCounter.Load()))
 	r.InternalCollectors.GitlabAPIRequestsRemaining.(*prometheus.GaugeVec).With(prometheus.Labels{}).Set(float64(g.RequestsRemaining))
 	r.InternalCollectors.GitlabAPIRequestsLimit.(*prometheus.GaugeVec).With(prometheus.Labels{}).Set(float64(g.RequestsLimit))
 	r.InternalCollectors.MetricsCount.(*prometheus.GaugeVec).With(prometheus.Labels{}).Set(float64(metricsCount))
 	r.InternalCollectors.ProjectsCount.(*prometheus.GaugeVec).With(prometheus.Labels{}).Set(float64(projectsCount))
 	r.InternalCollectors.RefsCount.(*prometheus.GaugeVec).With(prometheus.Labels{}).Set(float64(refsCount))
+
 	return
 }
 
-// RegisterCollectors add all our metrics to the registry
+// RegisterCollectors add all our metrics to the registry.
 func (r *Registry) RegisterCollectors() error {
 	for _, c := range r.Collectors {
 		if err := r.Register(c); err != nil {
 			return fmt.Errorf("could not add provided collector '%v' to the Prometheus registry: %v", c, err)
 		}
 	}
+
 	return nil
 }
 
@@ -180,16 +200,20 @@ func (r *Registry) ExportMetrics(metrics schemas.Metrics) {
 	}
 }
 
-func emitStatusMetric(s store.Store, metricKind schemas.MetricKind, labelValues map[string]string, statuses []string, status string, sparseMetrics bool) {
+func emitStatusMetric(ctx context.Context, s store.Store, metricKind schemas.MetricKind, labelValues map[string]string, statuses []string, status string, sparseMetrics bool) {
 	// Moved into separate function to reduce cyclomatic complexity
 	// List of available statuses from the API spec
 	// ref: https://docs.gitlab.com/ee/api/jobs.html#list-pipeline-jobs
 	for _, currentStatus := range statuses {
-		var value float64
-		statusLabels := make(map[string]string)
+		var (
+			value        float64
+			statusLabels = make(map[string]string)
+		)
+
 		for k, v := range labelValues {
 			statusLabels[k] = v
 		}
+
 		statusLabels["status"] = currentStatus
 
 		statusMetric := schemas.Metric{
@@ -202,12 +226,14 @@ func emitStatusMetric(s store.Store, metricKind schemas.MetricKind, labelValues 
 			statusMetric.Value = 1
 		} else {
 			if sparseMetrics {
-				storeDelMetric(s, statusMetric)
+				storeDelMetric(ctx, s, statusMetric)
+
 				continue
 			}
+
 			statusMetric.Value = 0
 		}
 
-		storeSetMetric(s, statusMetric)
+		storeSetMetric(ctx, s, statusMetric)
 	}
 }

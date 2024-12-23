@@ -3,12 +3,14 @@ package controller
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/config"
 	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/schemas"
 )
 
-func TestTriggerRefMetricsPull(_ *testing.T) {
-	c, _, srv := newTestController(config.Config{})
+func TestTriggerRefMetricsPull(t *testing.T) {
+	ctx, c, _, srv := newTestController(config.Config{})
 	srv.Close()
 
 	ref1 := schemas.Ref{
@@ -22,16 +24,16 @@ func TestTriggerRefMetricsPull(_ *testing.T) {
 		Name:    "main",
 	}
 
-	c.Store.SetRef(ref1)
-	c.Store.SetProject(p2)
+	assert.NoError(t, c.Store.SetRef(ctx, ref1))
+	assert.NoError(t, c.Store.SetProject(ctx, p2))
 
 	// TODO: Assert results somehow
-	c.triggerRefMetricsPull(ref1)
-	c.triggerRefMetricsPull(ref2)
+	c.triggerRefMetricsPull(ctx, ref1)
+	c.triggerRefMetricsPull(ctx, ref2)
 }
 
-func TestTriggerEnvironmentMetricsPull(_ *testing.T) {
-	c, _, srv := newTestController(config.Config{})
+func TestTriggerEnvironmentMetricsPull(t *testing.T) {
+	ctx, c, _, srv := newTestController(config.Config{})
 	srv.Close()
 
 	p1 := schemas.NewProject("foo/bar")
@@ -45,11 +47,11 @@ func TestTriggerEnvironmentMetricsPull(_ *testing.T) {
 		Name:        "prod",
 	}
 
-	c.Store.SetProject(p1)
-	c.Store.SetEnvironment(env1)
-	c.Store.SetEnvironment(env2)
+	assert.NoError(t, c.Store.SetProject(ctx, p1))
+	assert.NoError(t, c.Store.SetEnvironment(ctx, env1))
+	assert.NoError(t, c.Store.SetEnvironment(ctx, env2))
 
 	// TODO: Assert results somehow
-	c.triggerEnvironmentMetricsPull(env1)
-	c.triggerEnvironmentMetricsPull(env2)
+	c.triggerEnvironmentMetricsPull(ctx, env1)
+	c.triggerEnvironmentMetricsPull(ctx, env2)
 }

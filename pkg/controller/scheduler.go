@@ -5,20 +5,21 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
+	log "github.com/sirupsen/logrus"
+	"github.com/vmihailenco/taskq/memqueue/v4"
+	"github.com/vmihailenco/taskq/redisq/v4"
+	"github.com/vmihailenco/taskq/v4"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+
 	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/config"
 	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/monitor"
 	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/schemas"
 	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/store"
-	log "github.com/sirupsen/logrus"
-	"github.com/vmihailenco/taskq/v3"
-	"github.com/vmihailenco/taskq/v3/memqueue"
-	"github.com/vmihailenco/taskq/v3/redisq"
 )
 
-const bufferSize = 1000
-
-// TaskController holds task related clients
+// TaskController holds task related clients.
 type TaskController struct {
 	Factory                  taskq.Factory
 	Queue                    taskq.Queue
@@ -26,22 +27,18 @@ type TaskController struct {
 	TaskSchedulingMonitoring map[schemas.TaskType]*monitor.TaskSchedulingStatus
 }
 
-// NewTaskController initializes and returns a new TaskController object
-func NewTaskController(r *redis.Client) (t TaskController) {
+// NewTaskController initializes and returns a new TaskController object.
+func NewTaskController(ctx context.Context, r *redis.Client, maximumJobsQueueSize int) (t TaskController) {
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "controller:NewTaskController")
+	defer span.End()
+
 	t.TaskMap = &taskq.TaskMap{}
 
-	queueOptions := &taskq.QueueOptions{
+	queueOptions := &taskq.QueueConfig{
 		Name:                 "default",
 		PauseErrorsThreshold: 3,
 		Handler:              t.TaskMap,
-		BufferSize:           bufferSize,
-
-		// Disable system resources checks
-		MinSystemResources: taskq.SystemResources{
-			Load1PerCPU:          -1,
-			MemoryFreeMB:         0,
-			MemoryFreePercentage: 0,
-		},
+		BufferSize:           maximumJobsQueueSize,
 	}
 
 	if r != nil {
@@ -55,13 +52,17 @@ func NewTaskController(r *redis.Client) (t TaskController) {
 
 	// Purge the queue when we start
 	// I am only partially convinced this will not cause issues in HA fashion
-	if err := t.Queue.Purge(); err != nil {
-		log.WithField("error", err.Error()).Error("purging the pulling queue")
+	if err := t.Queue.Purge(ctx); err != nil {
+		log.WithContext(ctx).
+			WithError(err).
+			Error("purging the pulling queue")
 	}
 
 	if r != nil {
 		if err := t.Factory.StartConsumers(context.TODO()); err != nil {
-			log.WithError(err).Fatal("starting consuming the task queue")
+			log.WithContext(ctx).
+				WithError(err).
+				Fatal("starting consuming the task queue")
 		}
 	}
 
@@ -70,73 +71,88 @@ func NewTaskController(r *redis.Client) (t TaskController) {
 	return
 }
 
+// TaskHandlerPullProject ..
+func (c *Controller) TaskHandlerPullProject(ctx context.Context, name string, pull config.ProjectPull) error {
+	defer c.unqueueTask(ctx, schemas.TaskTypePullProject, name)
+
+	return c.PullProject(ctx, name, pull)
+}
+
 // TaskHandlerPullProjectsFromWildcard ..
 func (c *Controller) TaskHandlerPullProjectsFromWildcard(ctx context.Context, id string, w config.Wildcard) error {
-	defer c.unqueueTask(schemas.TaskTypePullProjectsFromWildcard, id)
+	defer c.unqueueTask(ctx, schemas.TaskTypePullProjectsFromWildcard, id)
 
 	return c.PullProjectsFromWildcard(ctx, w)
 }
 
 // TaskHandlerPullEnvironmentsFromProject ..
 func (c *Controller) TaskHandlerPullEnvironmentsFromProject(ctx context.Context, p schemas.Project) {
-	defer c.unqueueTask(schemas.TaskTypePullEnvironmentsFromProject, string(p.Key()))
+	defer c.unqueueTask(ctx, schemas.TaskTypePullEnvironmentsFromProject, string(p.Key()))
 
 	// On errors, we do not want to retry these tasks
 	if p.Pull.Environments.Enabled {
 		if err := c.PullEnvironmentsFromProject(ctx, p); err != nil {
-			log.WithFields(log.Fields{
-				"project-name": p.Name,
-				"error":        err.Error(),
-			}).Warn("pulling environments from project")
+			log.WithContext(ctx).
+				WithFields(log.Fields{
+					"project-name": p.Name,
+				}).
+				WithError(err).
+				Warn("pulling environments from project")
 		}
 	}
 }
 
 // TaskHandlerPullEnvironmentMetrics ..
-func (c *Controller) TaskHandlerPullEnvironmentMetrics(env schemas.Environment) {
-	defer c.unqueueTask(schemas.TaskTypePullEnvironmentMetrics, string(env.Key()))
+func (c *Controller) TaskHandlerPullEnvironmentMetrics(ctx context.Context, env schemas.Environment) {
+	defer c.unqueueTask(ctx, schemas.TaskTypePullEnvironmentMetrics, string(env.Key()))
 
 	// On errors, we do not want to retry these tasks
-	if err := c.PullEnvironmentMetrics(env); err != nil {
-		log.WithFields(log.Fields{
-			"project-name":     env.ProjectName,
-			"environment-name": env.Name,
-			"environment-id":   env.ID,
-			"error":            err.Error(),
-		}).Warn("pulling environment metrics")
+	if err := c.PullEnvironmentMetrics(ctx, env); err != nil {
+		log.WithContext(ctx).
+			WithFields(log.Fields{
+				"project-name":     env.ProjectName,
+				"environment-name": env.Name,
+				"environment-id":   env.ID,
+			}).
+			WithError(err).
+			Warn("pulling environment metrics")
 	}
 }
 
 // TaskHandlerPullRefsFromProject ..
 func (c *Controller) TaskHandlerPullRefsFromProject(ctx context.Context, p schemas.Project) {
-	defer c.unqueueTask(schemas.TaskTypePullRefsFromProject, string(p.Key()))
+	defer c.unqueueTask(ctx, schemas.TaskTypePullRefsFromProject, string(p.Key()))
 
 	// On errors, we do not want to retry these tasks
 	if err := c.PullRefsFromProject(ctx, p); err != nil {
-		log.WithFields(log.Fields{
-			"project-name": p.Name,
-			"error":        err.Error(),
-		}).Warn("pulling refs from project")
+		log.WithContext(ctx).
+			WithFields(log.Fields{
+				"project-name": p.Name,
+			}).
+			WithError(err).
+			Warn("pulling refs from project")
 	}
 }
 
 // TaskHandlerPullRefMetrics ..
-func (c *Controller) TaskHandlerPullRefMetrics(ref schemas.Ref) {
-	defer c.unqueueTask(schemas.TaskTypePullRefMetrics, string(ref.Key()))
+func (c *Controller) TaskHandlerPullRefMetrics(ctx context.Context, ref schemas.Ref) {
+	defer c.unqueueTask(ctx, schemas.TaskTypePullRefMetrics, string(ref.Key()))
 
 	// On errors, we do not want to retry these tasks
-	if err := c.PullRefMetrics(ref); err != nil {
-		log.WithFields(log.Fields{
-			"project-name": ref.Project.Name,
-			"ref":          ref.Name,
-			"error":        err.Error(),
-		}).Warn("pulling ref metrics")
+	if err := c.PullRefMetrics(ctx, ref); err != nil {
+		log.WithContext(ctx).
+			WithFields(log.Fields{
+				"project-name": ref.Project.Name,
+				"ref":          ref.Name,
+			}).
+			WithError(err).
+			Warn("pulling ref metrics")
 	}
 }
 
 // TaskHandlerPullProjectsFromWildcards ..
 func (c *Controller) TaskHandlerPullProjectsFromWildcards(ctx context.Context) {
-	defer c.unqueueTask(schemas.TaskTypePullProjectsFromWildcards, "_")
+	defer c.unqueueTask(ctx, schemas.TaskTypePullProjectsFromWildcards, "_")
 	defer c.TaskController.monitorLastTaskScheduling(schemas.TaskTypePullProjectsFromWildcards)
 
 	log.WithFields(
@@ -152,12 +168,14 @@ func (c *Controller) TaskHandlerPullProjectsFromWildcards(ctx context.Context) {
 
 // TaskHandlerPullEnvironmentsFromProjects ..
 func (c *Controller) TaskHandlerPullEnvironmentsFromProjects(ctx context.Context) {
-	defer c.unqueueTask(schemas.TaskTypePullEnvironmentsFromProjects, "_")
+	defer c.unqueueTask(ctx, schemas.TaskTypePullEnvironmentsFromProjects, "_")
 	defer c.TaskController.monitorLastTaskScheduling(schemas.TaskTypePullEnvironmentsFromProjects)
 
-	projectsCount, err := c.Store.ProjectsCount()
+	projectsCount, err := c.Store.ProjectsCount(ctx)
 	if err != nil {
-		log.Error(err.Error())
+		log.WithContext(ctx).
+			WithError(err).
+			Error()
 	}
 
 	log.WithFields(
@@ -166,9 +184,11 @@ func (c *Controller) TaskHandlerPullEnvironmentsFromProjects(ctx context.Context
 		},
 	).Info("scheduling environments from projects pull")
 
-	projects, err := c.Store.Projects()
+	projects, err := c.Store.Projects(ctx)
 	if err != nil {
-		log.Error(err)
+		log.WithContext(ctx).
+			WithError(err).
+			Error()
 	}
 
 	for _, p := range projects {
@@ -178,12 +198,14 @@ func (c *Controller) TaskHandlerPullEnvironmentsFromProjects(ctx context.Context
 
 // TaskHandlerPullRefsFromProjects ..
 func (c *Controller) TaskHandlerPullRefsFromProjects(ctx context.Context) {
-	defer c.unqueueTask(schemas.TaskTypePullRefsFromProjects, "_")
+	defer c.unqueueTask(ctx, schemas.TaskTypePullRefsFromProjects, "_")
 	defer c.TaskController.monitorLastTaskScheduling(schemas.TaskTypePullRefsFromProjects)
 
-	projectsCount, err := c.Store.ProjectsCount()
+	projectsCount, err := c.Store.ProjectsCount(ctx)
 	if err != nil {
-		log.Error(err.Error())
+		log.WithContext(ctx).
+			WithError(err).
+			Error()
 	}
 
 	log.WithFields(
@@ -192,9 +214,11 @@ func (c *Controller) TaskHandlerPullRefsFromProjects(ctx context.Context) {
 		},
 	).Info("scheduling refs from projects pull")
 
-	projects, err := c.Store.Projects()
+	projects, err := c.Store.Projects(ctx)
 	if err != nil {
-		log.Error(err)
+		log.WithContext(ctx).
+			WithError(err).
+			Error()
 	}
 
 	for _, p := range projects {
@@ -204,17 +228,21 @@ func (c *Controller) TaskHandlerPullRefsFromProjects(ctx context.Context) {
 
 // TaskHandlerPullMetrics ..
 func (c *Controller) TaskHandlerPullMetrics(ctx context.Context) {
-	defer c.unqueueTask(schemas.TaskTypePullMetrics, "_")
+	defer c.unqueueTask(ctx, schemas.TaskTypePullMetrics, "_")
 	defer c.TaskController.monitorLastTaskScheduling(schemas.TaskTypePullMetrics)
 
-	refsCount, err := c.Store.RefsCount()
+	refsCount, err := c.Store.RefsCount(ctx)
 	if err != nil {
-		log.Error(err)
+		log.WithContext(ctx).
+			WithError(err).
+			Error()
 	}
 
-	envsCount, err := c.Store.EnvironmentsCount()
+	envsCount, err := c.Store.EnvironmentsCount(ctx)
 	if err != nil {
-		log.Error(err)
+		log.WithContext(ctx).
+			WithError(err).
+			Error()
 	}
 
 	log.WithFields(
@@ -225,9 +253,11 @@ func (c *Controller) TaskHandlerPullMetrics(ctx context.Context) {
 	).Info("scheduling metrics pull")
 
 	// ENVIRONMENTS
-	envs, err := c.Store.Environments()
+	envs, err := c.Store.Environments(ctx)
 	if err != nil {
-		log.Error(err)
+		log.WithContext(ctx).
+			WithError(err).
+			Error()
 	}
 
 	for _, env := range envs {
@@ -235,9 +265,11 @@ func (c *Controller) TaskHandlerPullMetrics(ctx context.Context) {
 	}
 
 	// REFS
-	refs, err := c.Store.Refs()
+	refs, err := c.Store.Refs(ctx)
 	if err != nil {
-		log.Error(err)
+		log.WithContext(ctx).
+			WithError(err).
+			Error()
 	}
 
 	for _, ref := range refs {
@@ -247,7 +279,7 @@ func (c *Controller) TaskHandlerPullMetrics(ctx context.Context) {
 
 // TaskHandlerGarbageCollectProjects ..
 func (c *Controller) TaskHandlerGarbageCollectProjects(ctx context.Context) error {
-	defer c.unqueueTask(schemas.TaskTypeGarbageCollectProjects, "_")
+	defer c.unqueueTask(ctx, schemas.TaskTypeGarbageCollectProjects, "_")
 	defer c.TaskController.monitorLastTaskScheduling(schemas.TaskTypeGarbageCollectProjects)
 
 	return c.GarbageCollectProjects(ctx)
@@ -255,7 +287,7 @@ func (c *Controller) TaskHandlerGarbageCollectProjects(ctx context.Context) erro
 
 // TaskHandlerGarbageCollectEnvironments ..
 func (c *Controller) TaskHandlerGarbageCollectEnvironments(ctx context.Context) error {
-	defer c.unqueueTask(schemas.TaskTypeGarbageCollectEnvironments, "_")
+	defer c.unqueueTask(ctx, schemas.TaskTypeGarbageCollectEnvironments, "_")
 	defer c.TaskController.monitorLastTaskScheduling(schemas.TaskTypeGarbageCollectEnvironments)
 
 	return c.GarbageCollectEnvironments(ctx)
@@ -263,7 +295,7 @@ func (c *Controller) TaskHandlerGarbageCollectEnvironments(ctx context.Context) 
 
 // TaskHandlerGarbageCollectRefs ..
 func (c *Controller) TaskHandlerGarbageCollectRefs(ctx context.Context) error {
-	defer c.unqueueTask(schemas.TaskTypeGarbageCollectRefs, "_")
+	defer c.unqueueTask(ctx, schemas.TaskTypeGarbageCollectRefs, "_")
 	defer c.TaskController.monitorLastTaskScheduling(schemas.TaskTypeGarbageCollectRefs)
 
 	return c.GarbageCollectRefs(ctx)
@@ -271,7 +303,7 @@ func (c *Controller) TaskHandlerGarbageCollectRefs(ctx context.Context) error {
 
 // TaskHandlerGarbageCollectMetrics ..
 func (c *Controller) TaskHandlerGarbageCollectMetrics(ctx context.Context) error {
-	defer c.unqueueTask(schemas.TaskTypeGarbageCollectMetrics, "_")
+	defer c.unqueueTask(ctx, schemas.TaskTypeGarbageCollectMetrics, "_")
 	defer c.TaskController.monitorLastTaskScheduling(schemas.TaskTypeGarbageCollectMetrics)
 
 	return c.GarbageCollectMetrics(ctx)
@@ -279,6 +311,13 @@ func (c *Controller) TaskHandlerGarbageCollectMetrics(ctx context.Context) error
 
 // Schedule ..
 func (c *Controller) Schedule(ctx context.Context, pull config.Pull, gc config.GarbageCollect) {
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "controller:Schedule")
+	defer span.End()
+
+	go func() {
+		c.GetGitLabMetadata(ctx)
+	}()
+
 	for tt, cfg := range map[schemas.TaskType]config.SchedulerConfig{
 		schemas.TaskTypePullProjectsFromWildcards:    config.SchedulerConfig(pull.ProjectsFromWildcards),
 		schemas.TaskTypePullEnvironmentsFromProjects: config.SchedulerConfig(pull.EnvironmentsFromProjects),
@@ -307,17 +346,23 @@ func (c *Controller) Schedule(ctx context.Context, pull config.Pull, gc config.G
 // a key is periodically updated within Redis to let other instances know this
 // one is alive and processing tasks.
 func (c *Controller) ScheduleRedisSetKeepalive(ctx context.Context) {
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "controller:ScheduleRedisSetKeepalive")
+	defer span.End()
+
 	go func(ctx context.Context) {
 		ticker := time.NewTicker(time.Duration(5) * time.Second)
+
 		for {
 			select {
 			case <-ctx.Done():
 				log.Info("stopped redis keepalive")
+
 				return
 			case <-ticker.C:
-				_, err := c.Store.(*store.Redis).SetKeepalive(c.UUID.String(), time.Duration(10)*time.Second)
-				if err != nil {
-					log.WithError(err).Fatal("setting keepalive")
+				if _, err := c.Store.(*store.Redis).SetKeepalive(ctx, c.UUID.String(), time.Duration(10)*time.Second); err != nil {
+					log.WithContext(ctx).
+						WithError(err).
+						Fatal("setting keepalive")
 				}
 			}
 		}
@@ -326,46 +371,73 @@ func (c *Controller) ScheduleRedisSetKeepalive(ctx context.Context) {
 
 // ScheduleTask ..
 func (c *Controller) ScheduleTask(ctx context.Context, tt schemas.TaskType, uniqueID string, args ...interface{}) {
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "controller:ScheduleTask")
+	defer span.End()
+
+	span.SetAttributes(attribute.String("task_type", string(tt)))
+	span.SetAttributes(attribute.String("task_unique_id", uniqueID))
+
 	logFields := log.Fields{
 		"task_type":      tt,
 		"task_unique_id": uniqueID,
 	}
 	task := c.TaskController.TaskMap.Get(string(tt))
-	msg := task.WithArgs(ctx, args...)
+	msg := task.NewJob(args...)
 
-	qlen, err := c.TaskController.Queue.Len()
+	qlen, err := c.TaskController.Queue.Len(ctx)
 	if err != nil {
-		log.WithFields(logFields).Warn("unable to read task queue length, skipping scheduling of task..")
+		log.WithContext(ctx).
+			WithFields(logFields).
+			Warn("unable to read task queue length, skipping scheduling of task..")
+
 		return
 	}
 
 	if qlen >= c.TaskController.Queue.Options().BufferSize {
-		log.WithFields(logFields).Warn("queue buffer size exhausted, skipping scheduling of task..")
+		log.WithContext(ctx).
+			WithFields(logFields).
+			Warn("queue buffer size exhausted, skipping scheduling of task..")
+
 		return
 	}
 
-	queued, err := c.Store.QueueTask(tt, uniqueID, c.UUID.String())
+	queued, err := c.Store.QueueTask(ctx, tt, uniqueID, c.UUID.String())
 	if err != nil {
-		log.WithFields(logFields).Warn("unable to declare the queueing, skipping scheduling of task..")
+		log.WithContext(ctx).
+			WithFields(logFields).
+			Warn("unable to declare the queueing, skipping scheduling of task..")
+
 		return
 	}
 
 	if !queued {
-		log.WithFields(logFields).Debug("task already queued, skipping scheduling of task..")
+		log.WithFields(logFields).
+			Debug("task already queued, skipping scheduling of task..")
+
 		return
 	}
 
-	go func(msg *taskq.Message) {
-		if err := c.TaskController.Queue.Add(msg); err != nil {
-			log.WithError(err).Warning("scheduling task")
+	go func(job *taskq.Job) {
+		if err := c.TaskController.Queue.AddJob(ctx, job); err != nil {
+			log.WithContext(ctx).
+				WithError(err).
+				Warn("scheduling task")
 		}
 	}(msg)
 }
 
 // ScheduleTaskWithTicker ..
 func (c *Controller) ScheduleTaskWithTicker(ctx context.Context, tt schemas.TaskType, intervalSeconds int) {
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "controller:ScheduleTaskWithTicker")
+	defer span.End()
+	span.SetAttributes(attribute.String("task_type", string(tt)))
+	span.SetAttributes(attribute.Int("interval_seconds", intervalSeconds))
+
 	if intervalSeconds <= 0 {
-		log.WithField("task", tt).Warn("task scheduling misconfigured, currently disabled")
+		log.WithContext(ctx).
+			WithField("task", tt).
+			Warn("task scheduling misconfigured, currently disabled")
+
 		return
 	}
 
@@ -378,17 +450,16 @@ func (c *Controller) ScheduleTaskWithTicker(ctx context.Context, tt schemas.Task
 
 	go func(ctx context.Context) {
 		ticker := time.NewTicker(time.Duration(intervalSeconds) * time.Second)
+
 		for {
 			select {
 			case <-ctx.Done():
 				log.WithField("task", tt).Info("scheduling of task stopped")
+
 				return
 			case <-ticker.C:
-				switch tt {
-				default:
-					c.ScheduleTask(ctx, tt, "_")
-					c.TaskController.monitorNextTaskScheduling(tt, intervalSeconds)
-				}
+				c.ScheduleTask(ctx, tt, "_")
+				c.TaskController.monitorNextTaskScheduling(tt, intervalSeconds)
 			}
 		}
 	}(ctx)
@@ -398,6 +469,7 @@ func (tc *TaskController) monitorNextTaskScheduling(tt schemas.TaskType, duratio
 	if _, ok := tc.TaskSchedulingMonitoring[tt]; !ok {
 		tc.TaskSchedulingMonitoring[tt] = &monitor.TaskSchedulingStatus{}
 	}
+
 	tc.TaskSchedulingMonitoring[tt].Next = time.Now().Add(time.Duration(duration) * time.Second)
 }
 
@@ -405,5 +477,6 @@ func (tc *TaskController) monitorLastTaskScheduling(tt schemas.TaskType) {
 	if _, ok := tc.TaskSchedulingMonitoring[tt]; !ok {
 		tc.TaskSchedulingMonitoring[tt] = &monitor.TaskSchedulingStatus{}
 	}
+
 	tc.TaskSchedulingMonitoring[tt].Last = time.Now()
 }

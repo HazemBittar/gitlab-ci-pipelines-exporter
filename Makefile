@@ -1,51 +1,28 @@
-NAME          := gitlab-ci-pipelines-exporter
-FILES         := $(shell git ls-files */*.go)
-REPOSITORY    := mvisonneau/$(NAME)
-.DEFAULT_GOAL := help
-
-.PHONY: setup
-setup: ## Install required libraries/tools for build tasks
-	@command -v gofumpt 2>&1 >/dev/null     || go install mvdan.cc/gofumpt@v0.1.1
-	@command -v gosec 2>&1 >/dev/null       || go install github.com/securego/gosec/v2/cmd/gosec@v2.8.1
-	@command -v ineffassign 2>&1 >/dev/null || go install github.com/gordonklaus/ineffassign@v0.0.0-20210914165742-4cc7213b9bc8
-	@command -v misspell 2>&1 >/dev/null    || go install github.com/client9/misspell/cmd/misspell@v0.3.4
-	@command -v revive 2>&1 >/dev/null      || go install github.com/mgechev/revive@v1.1.1
+NAME           := gitlab-ci-pipelines-exporter
+FILES          := $(shell git ls-files */*.go)
+COVERAGE_FILE  := coverage.out
+REPOSITORY     := mvisonneau/$(NAME)
+.DEFAULT_GOAL  := help
+GOLANG_VERSION := 1.23
 
 .PHONY: fmt
-fmt: setup ## Format source code
-	gofumpt -w $(FILES)
+fmt: ## Format source code
+	go run mvdan.cc/gofumpt@v0.7.0 -w $(shell git ls-files **/*.go)
+	go run github.com/daixiang0/gci@v0.13.5 write -s standard -s default -s "prefix(github.com/mvisonneau)" .
 
 .PHONY: lint
-lint: revive vet gofumpt ineffassign misspell gosec ## Run all lint related tests against the codebase
-
-.PHONY: revive
-revive: setup ## Test code syntax with revive
-	revive -config .revive.toml $(FILES)
-
-.PHONY: vet
-vet: ## Test code syntax with go vet
-	go vet ./...
-
-.PHONY: gofumpt
-gofumpt: setup ## Test code syntax with gofumpt
-	gofumpt -d $(FILES) > gofumpt.out
-	@if [ -s gofumpt.out ]; then cat gofumpt.out; rm gofumpt.out; exit 1; else rm gofumpt.out; fi
-
-.PHONY: ineffassign
-ineffassign: setup ## Test code syntax for ineffassign
-	ineffassign ./...
-
-.PHONY: misspell
-misspell: setup ## Test code with misspell
-	misspell -error $(FILES)
-
-.PHONY: gosec
-gosec: setup ## Test code for security vulnerabilities
-	gosec ./...
+lint: ## Run all lint related tests upon the codebase
+	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.62.2 run -v --fast
 
 .PHONY: test
 test: ## Run the tests against the codebase
-	go test -v -count=1 -race ./...
+	@rm -rf $(COVERAGE_FILE)
+	go test -v -count=1 -race ./... -coverprofile=$(COVERAGE_FILE)
+	@go tool cover -func $(COVERAGE_FILE) | awk '/^total/ {print "coverage: " $$3}'
+
+.PHONY: coverage
+coverage: ## Prints coverage report
+	go tool cover -func $(COVERAGE_FILE)
 
 .PHONY: install
 install: ## Build and install locally the binary (dev purpose)
@@ -57,12 +34,23 @@ build: ## Build the binaries using local GOOS
 
 .PHONY: release
 release: ## Build & release the binaries (stable)
+	mkdir -p ${HOME}/.cache/snapcraft/download
+	mkdir -p ${HOME}/.cache/snapcraft/stage-packages
 	git tag -d edge
-	goreleaser release --rm-dist
+	goreleaser release --clean
 	find dist -type f -name "*.snap" -exec snapcraft upload --release stable,edge '{}' \;
 
+.PHONY: protoc
+protoc: ## Generate golang from .proto files
+	@command -v protoc 2>&1 >/dev/null        || (echo "protoc needs to be available in PATH: https://github.com/protocolbuffers/protobuf/releases"; false)
+	@command -v protoc-gen-go 2>&1 >/dev/null || go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
+	protoc \
+		--go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		pkg/monitor/protobuf/monitor.proto
+
 .PHONY: prerelease
-prerelease: setup ## Build & prerelease the binaries (edge)
+prerelease: ## Build & prerelease the binaries (edge)
 	@\
 		REPOSITORY=$(REPOSITORY) \
 		NAME=$(NAME) \
@@ -72,11 +60,6 @@ prerelease: setup ## Build & prerelease the binaries (edge)
 .PHONY: clean
 clean: ## Remove binary if it exists
 	rm -f $(NAME)
-
-.PHONY: coverage
-coverage: ## Generates coverage report
-	rm -rf *.out
-	go test -count=1 -race -v ./... -coverpkg=./... -coverprofile=coverage.out
 
 .PHONY: coverage-html
 coverage-html: ## Generates coverage report and displays it in the browser
@@ -88,14 +71,32 @@ dev-env: ## Build a local development environment using Docker
 		-v $(shell pwd):/go/src/github.com/mvisonneau/$(NAME) \
 		-w /go/src/github.com/mvisonneau/$(NAME) \
 		-p 8080:8080 \
-		golang:1.17 \
-		/bin/bash -c 'make setup; make install; bash'
+		golang:$(GOLANG_VERSION) \
+		/bin/bash -c '\
+		  git config --global --add safe.directory $$(pwd);\
+		  make install;\
+		  bash\
+		'
 
 .PHONY: is-git-dirty
 is-git-dirty: ## Tests if git is in a dirty state
 	@git status --porcelain
 	@test $(shell git status --porcelain | grep -c .) -eq 0
 
+.PHONY: man-pages
+man-pages: ## Generates man pages
+	rm -rf helpers/manpages
+	mkdir -p helpers/manpages
+	go run ./cmd/tools/man | gzip -c -9 >helpers/manpages/$(NAME).1.gz
+
+.PHONY: autocomplete-scripts
+autocomplete-scripts: ## Download CLI autocompletion scripts
+	rm -rf helpers/autocomplete
+	mkdir -p helpers/autocomplete
+	curl -sL https://raw.githubusercontent.com/urfave/cli/v2.27.1/autocomplete/bash_autocomplete > helpers/autocomplete/bash
+	curl -sL https://raw.githubusercontent.com/urfave/cli/v2.27.1/autocomplete/zsh_autocomplete > helpers/autocomplete/zsh
+	curl -sL https://raw.githubusercontent.com/urfave/cli/v2.27.1/autocomplete/powershell_autocomplete.ps1 > helpers/autocomplete/ps1
+	
 .PHONY: all
 all: lint test build coverage ## Test, builds and ship package for all supported platforms
 

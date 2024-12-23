@@ -5,13 +5,14 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/config"
 	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/schemas"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestPullRefPipelineJobsMetrics(t *testing.T) {
-	c, mux, srv := newTestController(config.Config{})
+	ctx, c, mux, srv := newTestController(config.Config{})
 	defer srv.Close()
 
 	mux.HandleFunc("/api/v4/projects/foo/pipelines/1/jobs",
@@ -25,15 +26,14 @@ func TestPullRefPipelineJobsMetrics(t *testing.T) {
 	ref := schemas.NewRef(p, schemas.RefKindBranch, "bar")
 	ref.LatestPipeline.ID = 1
 
-	assert.NoError(t, c.PullRefPipelineJobsMetrics(ref))
-	srv.Close()
-	assert.Error(t, c.PullRefPipelineJobsMetrics(ref))
-
 	// TODO: assert the results?
+	assert.NoError(t, c.PullRefPipelineJobsMetrics(ctx, ref))
+	srv.Close()
+	assert.Error(t, c.PullRefPipelineJobsMetrics(ctx, ref))
 }
 
 func TestPullRefMostRecentJobsMetrics(t *testing.T) {
-	c, mux, srv := newTestController(config.Config{})
+	ctx, c, mux, srv := newTestController(config.Config{})
 	defer srv.Close()
 
 	mux.HandleFunc("/api/v4/projects/foo/jobs",
@@ -52,17 +52,17 @@ func TestPullRefMostRecentJobsMetrics(t *testing.T) {
 	}
 
 	// Test with FetchPipelineJobMetrics disabled
-	assert.NoError(t, c.PullRefMostRecentJobsMetrics(ref))
+	assert.NoError(t, c.PullRefMostRecentJobsMetrics(ctx, ref))
 
 	// Enable FetchPipelineJobMetrics
 	ref.Project.Pull.Pipeline.Jobs.Enabled = true
-	assert.NoError(t, c.PullRefMostRecentJobsMetrics(ref))
+	assert.NoError(t, c.PullRefMostRecentJobsMetrics(ctx, ref))
 	srv.Close()
-	assert.Error(t, c.PullRefMostRecentJobsMetrics(ref))
+	assert.Error(t, c.PullRefMostRecentJobsMetrics(ctx, ref))
 }
 
 func TestProcessJobMetrics(t *testing.T) {
-	c, _, srv := newTestController(config.Config{})
+	ctx, c, _, srv := newTestController(config.Config{})
 	srv.Close()
 
 	oldJob := schemas.Job{
@@ -78,6 +78,7 @@ func TestProcessJobMetrics(t *testing.T) {
 		DurationSeconds: 15,
 		Status:          "failed",
 		Stage:           "🚀",
+		TagList:         "",
 		ArtifactSize:    150,
 		Runner: schemas.Runner{
 			Description: "foo-123-bar",
@@ -95,31 +96,34 @@ func TestProcessJobMetrics(t *testing.T) {
 		"foo": oldJob,
 	}
 
-	c.Store.SetRef(ref)
+	c.Store.SetRef(ctx, ref)
 
 	// If we run it against the same job, nothing should change in the store
-	c.ProcessJobMetrics(ref, oldJob)
-	refs, _ := c.Store.Refs()
+	c.ProcessJobMetrics(ctx, ref, oldJob)
+	refs, _ := c.Store.Refs(ctx)
 	assert.Equal(t, schemas.Jobs{
 		"foo": oldJob,
 	}, refs[ref.Key()].LatestJobs)
 
 	// Update the ref
-	c.ProcessJobMetrics(ref, newJob)
-	refs, _ = c.Store.Refs()
+	c.ProcessJobMetrics(ctx, ref, newJob)
+	refs, _ = c.Store.Refs(ctx)
 	assert.Equal(t, schemas.Jobs{
 		"foo": newJob,
 	}, refs[ref.Key()].LatestJobs)
 
 	// Check if all the metrics exist
-	metrics, _ := c.Store.Metrics()
+	metrics, _ := c.Store.Metrics(ctx)
 	labels := map[string]string{
 		"project":            ref.Project.Name,
 		"topics":             ref.Project.Topics,
 		"ref":                ref.Name,
 		"kind":               string(ref.Kind),
 		"variables":          ref.LatestPipeline.Variables,
+		"source":             ref.LatestPipeline.Source,
 		"stage":              newJob.Stage,
+		"tag_list":           newJob.TagList,
+		"failure_reason":     newJob.FailureReason,
 		"job_name":           newJob.Name,
 		"runner_description": ref.Project.Pull.Pipeline.Jobs.RunnerDescription.AggregationRegexp,
 	}

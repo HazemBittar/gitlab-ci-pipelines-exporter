@@ -16,32 +16,31 @@ jobs:
     strategy:
       matrix:
         os:
-          - ubuntu-20.04
-          - macos-10.15
-          - macos-11.0
-          - windows-2019
+          - ubuntu-24.04
+          - macos-13
+          - windows-2022
 
     runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Install Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5
         with:
-          go-version: 1.17
+          go-version: '1.23'
 
       - name: Lint
-        if: ${{ matrix.os == 'ubuntu-20.04' }}
+        if: ${{ matrix.os == 'ubuntu-24.04' }}
         run: make lint
 
       - name: Test
-        run: make coverage
+        run: make test
 
       - name: Publish coverage to coveralls.io
-        uses: shogo82148/actions-goveralls@v1
-        if: ${{ matrix.os == 'ubuntu-20.04' }}
+        uses: shogo82148/actions-goveralls@785c9d68212c91196d3994652647f8721918ba11 # v1
+        if: ${{ matrix.os == 'ubuntu-24.04' }}
         with:
           path-to-profile: coverage.out
 
