@@ -9,13 +9,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/controller"
-	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/monitor/rpc"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
+
+	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/controller"
+	monitoringServer "github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/monitor/server"
 )
 
-// Run launches the exporter
+// Run launches the exporter.
 func Run(cliCtx *cli.Context) (int, error) {
 	cfg, err := configure(cliCtx)
 	if err != nil {
@@ -32,14 +33,13 @@ func Run(cliCtx *cli.Context) (int, error) {
 
 	// Start the monitoring RPC server
 	go func(c *controller.Controller) {
-		rpc.ServeUNIX(
-			rpc.NewServer(
-				c.Gitlab,
-				c.Config,
-				c.Store,
-				c.TaskController.TaskSchedulingMonitoring,
-			),
+		s := monitoringServer.NewServer(
+			c.Gitlab,
+			c.Config,
+			c.Store,
+			c.TaskController.TaskSchedulingMonitoring,
 		)
+		s.Serve()
 	}(&c)
 
 	// Graceful shutdowns
@@ -54,7 +54,7 @@ func Run(cliCtx *cli.Context) (int, error) {
 	}
 
 	// health endpoints
-	health := c.HealthCheckHandler()
+	health := c.HealthCheckHandler(ctx)
 	mux.HandleFunc("/health/live", health.LiveEndpoint)
 	mux.HandleFunc("/health/ready", health.ReadyEndpoint)
 
@@ -79,7 +79,9 @@ func Run(cliCtx *cli.Context) (int, error) {
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.WithError(err).Fatal()
+			log.WithContext(ctx).
+				WithError(err).
+				Fatal()
 		}
 	}()
 
@@ -106,5 +108,6 @@ func Run(cliCtx *cli.Context) (int, error) {
 	}
 
 	log.Info("stopped!")
+
 	return 0, nil
 }

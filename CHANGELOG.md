@@ -7,9 +7,194 @@ and this project adheres to [0ver](https://0ver.org) (more or less).
 
 ## [Unreleased]
 
+## [v0.5.10] - 2025-01-14
+
+* fix(deps): update module google.golang.org/grpc to v1.67.1 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/904
+* chore(deps): update dependency go to v1.23.2 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/905
+* chore(deps): update busybox docker tag to v1.37 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/906
+* chore(deps): update docker/setup-buildx-action digest to 8026d2b by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/907
+* chore(deps): update docker/setup-buildx-action digest to c47758b by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/909
+* fix(deps): update module golang.org/x/time to v0.7.0 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/910
+* fix(deps): update golang.org/x/exp digest to 225e2ab by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/911
+* fix(deps): update module github.com/xanzy/go-gitlab to v0.110.0 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/912
+* fix(deps): update module google.golang.org/protobuf to v1.35.1 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/913
+* chore(deps): update actions/checkout digest to eef6144 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/914
+* fix(deps): update golang.org/x/exp digest to f66d83c by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/918
+* fix(deps): update module github.com/xanzy/go-gitlab to v0.111.0 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/921
+* fix(deps): update all patch and minor to v1.31.0 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/922
+* fix(deps): update module github.com/urfave/cli/v2 to v2.27.5 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/923
+* fix(deps): update all patch and minor by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/924
+* chore(deps): update busybox:1.37-glibc docker digest to 3757a0a by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/927
+* fix(deps): update module github.com/charmbracelet/lipgloss to v0.13.1 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/928
+* chore(deps): update actions/checkout digest to 11bd719 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/929
+* chore(deps): update actions/setup-go digest to 41dfa10 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/931
+* fix(deps): update module github.com/charmbracelet/bubbletea to v1.1.2 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/932
+* chore(deps): update crazy-max/ghaction-import-gpg digest to cb9bde2 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/933
+* fix(deps): update module github.com/xanzy/go-gitlab to v0.113.0 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/937
+* fix(deps): update module github.com/charmbracelet/bubbletea to v1.2.0 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/938
+* chore(deps): update all patch and minor by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/939
+* fix(deps): update all patch and minor by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/942
+* fix(deps): update all patch and minor by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/943
+* chore(deps): update module github.com/golangci/golangci-lint/cmd/golangci-lint to v1.62.0 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/944
+* chore(deps): update alpine:3.20 docker digest to 1e42bbe by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/945
+* fix(deps): update module github.com/charmbracelet/bubbletea to v1.2.2 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/946
+* fix(deps): update module google.golang.org/protobuf to v1.35.2 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/947
+* fix(deps): update module github.com/go-playground/validator/v10 to v10.23.0 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/949
+* fix(deps): update module github.com/xanzy/go-gitlab to v0.114.0 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/950
+* chore(deps): update all patch and minor by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/951
+* chore(deps): update busybox:1.37-glibc docker digest to 0911a82 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/953
+* fix(deps): update module github.com/stretchr/testify to v1.10.0 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/955
+* fix(deps): update all patch and minor by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/956
+* chore(deps): update dependency go to v1.23.4 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/959
+* fix(deps): update all patch and minor by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/962
+* chore(deps): update alpine docker tag to v3.21 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/963
+* fix(deps): update all patch and minor by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/965
+* chore(deps): update all patch and minor by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/966
+* fix(deps): update all patch and minor by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/967
+* fix(deps): update golang.org/x/exp digest to 4a55095 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/969
+* chore(deps): update docker/setup-buildx-action digest to 6524bf6 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/970
+* fix(deps): update module google.golang.org/protobuf to v1.36.0 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/971
+* fix(deps): update golang.org/x/exp digest to b2144cd by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/972
+* fix(deps): update module github.com/alicebob/miniredis/v2 to v2.34.0 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/973
+* fix(deps): update module google.golang.org/grpc to v1.69.2 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/975
+* fix(deps): update module google.golang.org/protobuf to v1.36.1 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/976
+* Upgrade golang crypto package by @ppfenning92 in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/980
+* feat(cli): Add Validate cli command to "test" the configuration by @dmolik in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/964
+* chore(deps): update samuelmeuli/action-snapcraft action to v3 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/948
+* feat: detect pipeline with status success-with-warnings by @seyguai in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/878
+* go.mod: updated most dependencies by @mvisonneau in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/981
+
+## [v0.5.9] - 2024-09-27
+
+## Changed
+
+* fix: garbage collection of merge-request refs when webhook mode by @xNok in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/859
+* chore(deps): pin dependencies by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/891
+* docs: Update about output_sparse_status_metrics by @koooge in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/884
+* chore(deps): update all patch and minor by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/892
+* fix(deps): update module github.com/charmbracelet/bubbletea to v1.1.1 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/894
+* chore(deps): update actions/checkout action to v4 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/895
+* chore(deps): update actions/setup-go action to v5 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/896
+* chore(deps): update dependency ubuntu to v24 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/898
+* chore(deps): update crazy-max/ghaction-import-gpg action to v6 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/897
+* chore(deps): update docker/login-action action to v3 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/899
+* chore(deps): update docker/setup-buildx-action action to v3 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/900
+* chore(deps): update docker/setup-qemu-action action to v3 by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/901
+* chore(deps): update goreleaser/goreleaser-action action to v6 - autoclosed by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/902
+* chore(deps): update all patch and minor by @renovate in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/903
+
+## [v0.5.8] - 2024-05-03
+
+### Changed
+
+* fix(devenv): Fix devenv rule in makefile. by @audig in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/822
+* Add gitlab-health-url flag and envvar by @Thor77 in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/800
+* fix project pull webhook args by @fitz7 in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/828
+* go.mod: updated most dependencies
+
+## [v0.5.7] - 2024-03-03
+
+### Changed
+
+* fix environment id hyperlink NaN by @toby181 in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/776
+* webhooks: handle ref and tag deletion events by @sysedwinistrator in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/794
+* webhooks: only pull project for which request was received by @sysedwinistrator in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/793
+* ratelimit: redis should retry if allowed requests exceeded by @bkylerussell in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/789
+* chore: dependencies, tooling and go updates by @mvisonneau in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/799
+
+## [v0.5.6] - 2023-12-06
+
+### Changed
+
+* fix default branch regexp by @gnomus in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/665
+* Add test cases metrics from pipeline reports by @karpanin in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/675
+* bump go-gitlab version, bump golang version for make dev-env by @jasonwliu in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/670
+* Combine test report metrics with childrens reports by @jasonwliu in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/672
+* Fix misformed url to Gitlab pipeline by @fredsnap in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/650
+* Update go-gitlab to fix test reports by @clawoflight in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/686
+* Update GitLab logo to new branding in Grafana dashboard quickstart by @dnsmichi in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/694
+* Add tag_list label to metrics by @mpetke in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/499
+* pipelines: store the source of the pipeline as well by @mathstuf in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/723
+* feat: failure reason to job status by @strpc in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/718
+* build(deps): bump github.com/xanzy/go-gitlab from 0.92.3 to 0.94.0 by @dependabot in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/743
+* build(deps): bump github.com/charmbracelet/lipgloss from 0.8.0 to 0.9.1 by @dependabot in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/735
+* gitlab/client: guard against `nil` responses by @mathstuf in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/729
+* build(deps): bump golang.org/x/net from 0.15.0 to 0.17.0 by @dependabot in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/732
+* build(deps): bump github.com/alicebob/miniredis/v2 from 2.23.0 to 2.31.0 by @dependabot in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/734
+* build(deps): bump github.com/google/uuid from 1.3.1 to 1.4.0 by @dependabot in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/737
+* build(deps): bump golang.org/x/time from 0.3.0 to 0.4.0 by @dependabot in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/741
+* build(deps): bump github.com/go-playground/validator/v10 from 10.15.4 to 10.16.0 by @dependabot in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/742
+* build(deps): bump github.com/redis/go-redis/v9 from 9.2.1 to 9.3.0 by @dependabot in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/740
+* build(deps): bump github.com/vmihailenco/msgpack/v5 from 5.4.0 to 5.4.1 by @dependabot in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/739
+* build(deps): bump google.golang.org/grpc from 1.58.2 to 1.59.0 by @dependabot in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/736
+* feat: use keyset pagination for retrieving project CI jobs by @stanhu in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/744
+* fix: use keyset pagination only when it is supported by @stanhu in https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/pull/755
+
+## [v0.5.5] - 2023-05-22
+
+### Added
+
+- new metrics:
+  - `gitlab_ci_pipeline_test_report_total_time` -> Duration in seconds of all the tests in the most recently finished pipeline
+  - `gitlab_ci_pipeline_test_report_total_count` -> Number of total tests in the most recently finished pipeline
+  - `gitlab_ci_pipeline_test_report_success_count` -> Number of successful tests in the most recently finished pipeline
+  - `gitlab_ci_pipeline_test_report_failed_count` -> Number of failed tests in the most recently finished pipeline
+  - `gitlab_ci_pipeline_test_report_skipped_count` -> Number of skipped tests in the most recently finished pipeline
+  - `gitlab_ci_pipeline_test_report_error_count` -> Number of errored tests in the most recently finished pipeline
+  - `gitlab_ci_pipeline_test_suite_total_time` -> Duration in seconds for the test suite
+  - `gitlab_ci_pipeline_test_suite_total_count` -> Number of total tests for the test suite
+  - `gitlab_ci_pipeline_test_suite_success_count` -> Number of successful tests for the test suite
+  - `gitlab_ci_pipeline_test_suite_failed_count` -> Number of failed tests for the test suite
+  - `gitlab_ci_pipeline_test_suite_skipped_count` -> Number of skipped tests for the test suite
+  - `gitlab_ci_pipeline_test_suite_error_count` -> Duration in errored tests for the test suite
+- new configuration parameter: `gitlab.burstable_requests_per_second`, introducing a burstable amount of API RPS
+- new configuration parameter: `gitlab.maximum_jobs_queue_size`, controlling the queue buffer size
+- new label for pipelines and jobs: `source` to indicate the reason the pipeline started
+
+### Changed
+
+- Upgraded golang to **v1.20**
+- Upgraded most dependencies to their latest versions
+- Reduced the amount of data being pulled from the project list API calls
+
+## [v0.5.4] - 2022-08-25
+
+### Added
+
+- Kickstarted tracing support through `opentelemetry` implementation for most of the network calls
+- Now passing a `context.Context` to most functional calls
+- Aggregated already used linters and added new ones through the implementation of `golangci`
+- Release `.apk` packages for Alpine linux
+- Added man pages and autocompletion scripts (bash & zsh) to `.apk`, `.deb`, `.rpm` & `homebrew` packages
+- Release "fat" binaries (arm64 + amd64 combined) for MacOS under `_all` suffix
+
+### Changed
+
+- Fixed a config issue preventing the arm deb/rpm packages to be released correctly
+- Upgraded golang to **v1.19**
+- Upgraded most dependencies to their lastest versions
+- Fixed child pipeline jobs not found whilst looking up through bridges (#345)
+- `gitlab_ci_pipeline_job_queued_duration_seconds` & `gitlab_ci_pipeline_queued_duration_seconds` will now be leveraging the value returned through the GitLab API instead of computing it with (startedAt - createdAt)
+- Refactored the RPC layer used for CLI monitoring with gRPC
+
+## [v0.5.3] - 2022-02-11
+
+### Added
+
+- `linux/arm/v6` & `linux/arm/v7` binary & container image releases
+- `quay.io` container image releases
+- New internal metrics about exporter's health:
+  - `gcpe_gitlab_api_requests_remaining` -  GitLab API requests remaining in the API Limit
+  - `gcpe_gitlab_api_requests_limit` - GitLab API requests available in the API Limit
+
 ### Changed
 
 - Fixed an issue when running in cluster mode where tasks could hang when the exporter restarted.
+- Fixed a bug in some cases where pagination headers are not returned from GitLab's API
+- Upgraded most dependencies to their latest versions
+- fixed json syntax error in webhook error body
+- dashboards: fixed owner multiselect filters
+- fixed a bug on `gitlab_ci_pipeline_run_count` being incremented multiple times
 
 ## [v0.5.2] - 2021-08-25
 ### Changed
@@ -595,7 +780,15 @@ if not seen in a long time.
 - LICENSE
 - README
 
-[Unreleased]: https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/compare/v0.5.10...HEAD
+[v0.5.10]: https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/tree/v0.5.10
+[v0.5.9]: https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/tree/v0.5.9
+[v0.5.8]: https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/tree/v0.5.8
+[v0.5.7]: https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/tree/v0.5.7
+[v0.5.6]: https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/tree/v0.5.6
+[v0.5.5]: https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/tree/v0.5.5
+[v0.5.4]: https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/tree/v0.5.4
+[v0.5.3]: https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/tree/v0.5.3
 [v0.5.2]: https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/tree/v0.5.2
 [v0.5.1]: https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/tree/v0.5.1
 [v0.5.0]: https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/tree/v0.5.0

@@ -1,9 +1,12 @@
 package schemas
 
-// TaskType represents the type of a task
+// TaskType represents the type of a task.
 type TaskType string
 
 const (
+	// TaskTypePullProject ..
+	TaskTypePullProject TaskType = "PullProject"
+
 	// TaskTypePullProjectsFromWildcard ..
 	TaskTypePullProjectsFromWildcard TaskType = "PullProjectsFromWildcard"
 
@@ -44,5 +47,5 @@ const (
 	TaskTypeGarbageCollectMetrics TaskType = "GarbageCollectMetrics"
 )
 
-// Tasks can be used to keep track of tasks
+// Tasks can be used to keep track of tasks.
 type Tasks map[TaskType]map[string]interface{}

@@ -8,7 +8,7 @@
 [![release](https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/actions/workflows/release.yml/badge.svg)](https://github.com/mvisonneau/gitlab-ci-pipelines-exporter/actions/workflows/release.yml)
 [![gitlab-ci-pipelines-exporter](https://snapcraft.io/gitlab-ci-pipelines-exporter/badge.svg)](https://snapcraft.io/gitlab-ci-pipelines-exporter)
 
-`gitlab-ci-pipelines-exporter` allows you to monitor your [GitLab CI pipelines](https://docs.gitlab.com/ee/ci/pipelines.html) with [Prometheus](https://prometheus.io/) or any monitoring solution supporting the [OpenMetrics](https://github.com/OpenObservability/OpenMetrics) format.
+`gitlab-ci-pipelines-exporter` allows you to monitor your [GitLab CI pipelines](https://docs.gitlab.com/ee/ci/pipelines/) with [Prometheus](https://prometheus.io/) or any monitoring solution supporting the [OpenMetrics](https://github.com/OpenObservability/OpenMetrics) format.
 
 You can find more information [on GitLab docs](https://docs.gitlab.com/ee/ci/pipelines/pipeline_efficiency.html#pipeline-monitoring) about how it takes part improving your pipeline efficiency.
 
@@ -41,7 +41,7 @@ If you want to quickly try them out with your own data, have a look into the [ex
 ### Go
 
 ```bash
-~$ go get -u github.com/mvisonneau/gitlab-ci-pipelines-exporter/cmd/gitlab-ci-pipelines-exporter
+~$ go run github.com/mvisonneau/gitlab-ci-pipelines-exporter/cmd/gitlab-ci-pipelines-exporter@latest
 ```
 
 ### Snapcraft
@@ -60,8 +60,8 @@ If you want to quickly try them out with your own data, have a look into the [ex
 
 ```bash
 ~$ docker run -it --rm docker.io/mvisonneau/gitlab-ci-pipelines-exporter
-or
 ~$ docker run -it --rm ghcr.io/mvisonneau/gitlab-ci-pipelines-exporter
+~$ docker run -it --rm quay.io/mvisonneau/gitlab-ci-pipelines-exporter
 ```
 
 ### Scoop
@@ -69,6 +69,12 @@ or
 ```bash
 ~$ scoop bucket add https://github.com/mvisonneau/scoops
 ~$ scoop install gitlab-ci-pipelines-exporter
+```
+
+### NixOS
+
+```
+~$ nix-env -iA nixos.prometheus-gitlab-ci-pipelines-exporter
 ```
 
 ### Binaries, DEB and RPM packages
@@ -262,14 +268,16 @@ USAGE:
    gitlab-ci-pipelines-exporter [global options] command [command options] [arguments...]
 
 COMMANDS:
-   run      start the exporter
-   monitor  display information about the currently running exporter
-   help, h  Shows a list of commands or help for one command
+   run       start the exporter
+   validate  validate the configuration file
+   monitor   display information about the currently running exporter
+   help, h   Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
    --internal-monitoring-listener-address value, -m value  internal monitoring listener address [$GCPE_INTERNAL_MONITORING_LISTENER_ADDRESS]
-   --help, -h                                              show help (default: false)
-   --version, -v                                           print the version (default: false)
+   --help, -h                                              show help
+   --version, -v                                           print the version
+
 ```
 
 ### run
@@ -288,6 +296,21 @@ OPTIONS:
    --gitlab-token token          GitLab API access token (overrides config file parameter) [$GCPE_GITLAB_TOKEN]
    --webhook-secret-token token  token used to authenticate legitimate requests (overrides config file parameter) [$GCPE_WEBHOOK_SECRET_TOKEN]
    --help, -h                    show help (default: false)
+```
+
+### validate
+
+```bash
+~$ gitlab-ci-pipelines-exporter validate --help
+NAME:
+   gitlab-ci-pipelines-exporter validate - validate the configuration file
+
+USAGE:
+   gitlab-ci-pipelines-exporter validate [command options] [arguments...]
+
+OPTIONS:
+   --config file, -c file  config file (default: "./gitlab-ci-pipelines-exporter.yml") [$GCPE_CONFIG]
+   --help, -h              show help
 ```
 
 ### monitor

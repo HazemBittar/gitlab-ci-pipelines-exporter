@@ -5,11 +5,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/internal/cmd"
 	"github.com/urfave/cli/v2"
+
+	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/internal/cmd"
 )
 
-// Run handles the instanciation of the CLI application
+// Run handles the instanciation of the CLI application.
 func Run(version string, args []string) {
 	err := NewApp(version, time.Now()).Run(args)
 	if err != nil {
@@ -18,7 +19,7 @@ func Run(version string, args []string) {
 	}
 }
 
-// NewApp configures the CLI application
+// NewApp configures the CLI application.
 func NewApp(version string, start time.Time) (app *cli.App) {
 	app = cli.NewApp()
 	app.Name = "gitlab-ci-pipelines-exporter"
@@ -62,6 +63,25 @@ func NewApp(version string, start time.Time) (app *cli.App) {
 					Name:    "webhook-secret-token",
 					EnvVars: []string{"GCPE_WEBHOOK_SECRET_TOKEN"},
 					Usage:   "`token` used to authenticate legitimate requests (overrides config file parameter)",
+				},
+				&cli.StringFlag{
+					Name:    "gitlab-health-url",
+					EnvVars: []string{"GCPE_GITLAB_HEALTH_URL"},
+					Usage:   "GitLab health URL (overrides config file parameter)",
+				},
+			},
+		},
+		{
+			Name:   "validate",
+			Usage:  "validate the configuration file",
+			Action: cmd.ExecWrapper(cmd.Validate),
+			Flags: cli.FlagsByName{
+				&cli.StringFlag{
+					Name:    "config",
+					Aliases: []string{"c"},
+					EnvVars: []string{"GCPE_CONFIG"},
+					Usage:   "config `file`",
+					Value:   "./gitlab-ci-pipelines-exporter.yml",
 				},
 			},
 		},

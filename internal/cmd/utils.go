@@ -7,12 +7,14 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-logr/stdr"
+	log "github.com/sirupsen/logrus"
+	"github.com/uptrace/opentelemetry-go-extra/otellogrus"
+	"github.com/urfave/cli/v2"
+	"github.com/vmihailenco/taskq/v4"
+
 	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/config"
 	"github.com/mvisonneau/go-helpers/logger"
-	"github.com/vmihailenco/taskq/v3"
-
-	log "github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
 )
 
 var start time.Time
@@ -46,8 +48,15 @@ func configure(ctx *cli.Context) (cfg config.Config, err error) {
 		return
 	}
 
+	log.AddHook(otellogrus.NewHook(otellogrus.WithLevels(
+		log.PanicLevel,
+		log.FatalLevel,
+		log.ErrorLevel,
+		log.WarnLevel,
+	)))
+
 	// This hack is to embed taskq logs with logrus
-	taskq.SetLogger(stdlibLog.New(log.StandardLogger().WriterLevel(log.WarnLevel), "taskq", 0))
+	taskq.SetLogger(stdr.New(stdlibLog.New(log.StandardLogger().WriterLevel(log.WarnLevel), "taskq", 0)))
 
 	log.WithFields(
 		log.Fields{
@@ -70,7 +79,10 @@ func configure(ctx *cli.Context) (cfg config.Config, err error) {
 }
 
 func parseGlobalFlags(ctx *cli.Context) (cfg config.Global, err error) {
-	cfg.InternalMonitoringListenerAddress, err = url.Parse(ctx.String("internal-monitoring-listener-address"))
+	if listenerAddr := ctx.String("internal-monitoring-listener-address"); listenerAddr != "" {
+		cfg.InternalMonitoringListenerAddress, err = url.Parse(listenerAddr)
+	}
+
 	return
 }
 
@@ -82,13 +94,13 @@ func exit(exitCode int, err error) cli.ExitCoder {
 	).Debug("exited..")
 
 	if err != nil {
-		log.Error(err.Error())
+		log.WithError(err).Error()
 	}
 
-	return cli.NewExitError("", exitCode)
+	return cli.Exit("", exitCode)
 }
 
-// ExecWrapper gracefully logs and exits our `run` functions
+// ExecWrapper gracefully logs and exits our `run` functions.
 func ExecWrapper(f func(ctx *cli.Context) (int, error)) cli.ActionFunc {
 	return func(ctx *cli.Context) error {
 		return exit(f(ctx))
@@ -109,11 +121,17 @@ func configCliOverrides(ctx *cli.Context, cfg *config.Config) {
 	if ctx.String("redis-url") != "" {
 		cfg.Redis.URL = ctx.String("redis-url")
 	}
+
+	if healthURL := ctx.String("gitlab-health-url"); healthURL != "" {
+		cfg.Gitlab.HealthURL = healthURL
+		cfg.Gitlab.EnableHealthCheck = true
+	}
 }
 
 func assertStringVariableDefined(ctx *cli.Context, k string) {
 	if len(ctx.String(k)) == 0 {
 		_ = cli.ShowAppHelp(ctx)
+
 		log.Errorf("'--%s' must be set!", k)
 		os.Exit(2)
 	}

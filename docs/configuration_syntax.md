@@ -13,6 +13,12 @@ log:
   # (optional, default: text)
   format: text
 
+# OpenTelemetry configuration (currently supports tracing only)
+opentelemetry:
+  # Configure the OpenTelemetry collector gRPC endpoint in order to enable tracing
+  # (optional, default: "")
+  grpc_endpoint:
+
 # Exporter HTTP servers configuration
 server:
   # [address:port] to make the process listen
@@ -20,13 +26,13 @@ server:
   listen_address: :8080
   
   # Enable profiling pages
+  # at /debug/pprof (optional, default: false)
   enable_pprof: false
   
   metrics:
     # Enable /metrics endpoint (optional, default: true)
     enabled: true
-  # at /debug/pprof (optional, default: false)
-
+  
     # Enable OpenMetrics content encoding in
     # prometheus HTTP handler (optional, default: false)
     # see: https://godoc.org/github.com/prometheus/client_golang/prometheus/promhttp#HandlerOpts
@@ -80,9 +86,24 @@ gitlab:
   # GitLab instance (handy when self-hosting) (optional, default: true)
   enable_tls_verify: true
 
-  # Rate limit for the GitLab API requests/sec
+  # Maximum limit for the GitLab API requests/sec
   # (optional, default: 1)
   maximum_requests_per_second: 1
+
+  # Rate limit for the GitLab API requests/sec
+  # (optional, default: 5)
+  burstable_requests_per_second: 5
+
+  # Maximum amount of jobs to keep queue, if this limit is reached
+  # newly created ones will get dropped. As a best practice you should not change this value.
+  # Workarounds to avoid hitting the limit are:
+  # - increase polling intervals
+  # - increase API rate limit
+  # - reduce the amount of projects, refs, environments or metrics you are looking into
+  # - leverage webhooks instead of polling schedules
+  #
+  # (optional, default: 1000)
+  maximum_jobs_queue_size: 1000
 
 pull:
   projects_from_wildcards:
@@ -222,8 +243,8 @@ project_defaults:
         enabled: true
 
         # Filter for branches to include
-        # (optional, default: "^main|master$" -- main/master branches)
-        regexp: "^main|master$"
+        # (optional, default: "^(?:main|master)$" -- main/master branches)
+        regexp: "^(?:main|master)$"
         
         # Only keep most 'n' recently updated branches
         # (optional, default: 0 -- disabled/keep every branch matching the regexp)"
@@ -300,6 +321,14 @@ project_defaults:
         # Filter pipelines variables to include
         # (optional, default: ".*", all variables)
         regexp: ".*"
+      
+      test_reports:
+        # Fetch test reports in a separate metric (optiona, default: false)
+        enabled: false
+
+        test_cases:
+        # Fetch test cases reports in a separate metric (optional, default: false)
+          enabled: false
 
 # The list of the projects you want to monitor (optional)
 projects:
@@ -329,8 +358,8 @@ projects:
           enabled: true
 
           # Filter for branches to include
-          # (optional, default: "^main|master$" -- main/master branches)
-          regexp: "^main|master$"
+          # (optional, default: "^(?:main|master)$" -- main/master branches)
+          regexp: "^(?:main|master)$"
           
           # Only keep most 'n' recently updated branches
           # (optional, default: 0 -- disabled/keep every branch matching the regexp)"
@@ -407,6 +436,14 @@ projects:
           # Filter pipelines variables to include
           # (optional, default: ".*", all variables)
           regexp: ".*"
+          
+        test_reports:
+          # Fetch test reports in a separate metric (optiona, default: false)
+          enabled: false
+
+          test_cases:
+          # Fetch test cases reports in a separate metric (optional, default: false)
+            enabled: false
 
 # Dynamically fetch projects to monitor using a wildcard (optional)
 wildcards:
@@ -452,8 +489,8 @@ wildcards:
           enabled: true
 
           # Filter for branches to include
-          # (optional, default: "^main|master$" -- main/master branches)
-          regexp: "^main|master$"
+          # (optional, default: "^(?:main|master)$" -- main/master branches)
+          regexp: "^(?:main|master)$"
           
           # Only keep most 'n' recently updated branches
           # (optional, default: 0 -- disabled/keep every branch matching the regexp)"
@@ -530,6 +567,19 @@ wildcards:
           # Filter pipelines variables to include
           # (optional, default: ".*", all variables)
           regexp: ".*"
+          
+        test_reports:
+          # Fetch test reports in a separate metric (optiona, default: false)
+          enabled: false
+          
+          from_child_pipelines:
+            # Combines test reports from subsequent child/downstream pipelines
+            # (optional, default: false)
+            enabled: false
+
+          test_cases:
+          # Fetch test cases reports in a separate metric (optional, default: false)
+            enabled: false
 ```
 
 ## Pull all projects accessible by the provided token

@@ -11,31 +11,34 @@ import (
 
 var validate *validator.Validate
 
-// Config represents all the parameters required for the app to be configured properly
+// Config represents all the parameters required for the app to be configured properly.
 type Config struct {
 	// Global ..
 	Global Global `yaml:",omitempty"`
 
 	// Log configuration for the exporter
-	Log Log `yaml:"log" validate:"dive"`
+	Log Log `yaml:"log"`
+
+	// OpenTelemetry configuration
+	OpenTelemetry OpenTelemetry `yaml:"opentelemetry"`
 
 	// Server related configuration
-	Server Server `yaml:"server" validate:"dive"`
+	Server Server `yaml:"server"`
 
 	// GitLab related configuration
-	Gitlab Gitlab `yaml:"gitlab" validate:"dive"`
+	Gitlab Gitlab `yaml:"gitlab"`
 
 	// Redis related configuration
-	Redis Redis `yaml:"redis" validate:"dive"`
+	Redis Redis `yaml:"redis"`
 
 	// Pull configuration
-	Pull Pull `yaml:"pull" validate:"dive"`
+	Pull Pull `yaml:"pull"`
 
 	// GarbageCollect configuration
-	GarbageCollect GarbageCollect `yaml:"garbage_collect" validate:"dive"`
+	GarbageCollect GarbageCollect `yaml:"garbage_collect"`
 
 	// Default parameters which can be overridden at either the Project or Wildcard level
-	ProjectDefaults ProjectParameters `yaml:"project_defaults" validate:"dive"`
+	ProjectDefaults ProjectParameters `yaml:"project_defaults"`
 
 	// List of projects to pull
 	Projects []Project `validate:"unique,at-least-1-project-or-wildcard,dive" yaml:"projects"`
@@ -44,13 +47,19 @@ type Config struct {
 	Wildcards []Wildcard `validate:"unique,at-least-1-project-or-wildcard,dive" yaml:"wildcards"`
 }
 
-// Log holds runtime logging configuration
+// Log holds runtime logging configuration.
 type Log struct {
 	// Log level
 	Level string `default:"info" validate:"required,oneof=trace debug info warning error fatal panic"`
 
 	// Log format
 	Format string `default:"text" validate:"oneof=text json"`
+}
+
+// OpenTelemetry related configuration.
+type OpenTelemetry struct {
+	// gRPC endpoint of the opentelemetry collector
+	GRPCEndpoint string `yaml:"grpc_endpoint"`
 }
 
 // Server ..
@@ -100,8 +109,21 @@ type Gitlab struct {
 	// Whether to skip TLS validation when querying HealthURL
 	EnableTLSVerify bool `default:"true" yaml:"enable_tls_verify"`
 
-	// Rate limit for the GitLab API requests/sec
+	// Maximum limit for the GitLab API requests/sec
 	MaximumRequestsPerSecond int `default:"1" validate:"gte=1" yaml:"maximum_requests_per_second"`
+
+	// Burstable limit for the GitLab API requests/sec
+	BurstableRequestsPerSecond int `default:"5" validate:"gte=1" yaml:"burstable_requests_per_second"`
+
+	// Maximum amount of jobs to keep queue, if this limit is reached
+	// newly created ones will get dropped. As a best practice you should not change this value.
+	// Workarounds to avoid hitting the limit are:
+	// - increase polling intervals
+	// - increase API rate limit
+	// - reduce the amount of projects, refs, environments or metrics you are looking into
+	// - leverage webhooks instead of polling schedules
+	//
+	MaximumJobsQueueSize int `default:"1000" validate:"gte=10" yaml:"maximum_jobs_queue_size"`
 }
 
 // Redis ..
@@ -173,11 +195,11 @@ type GarbageCollect struct {
 	} `yaml:"metrics"`
 }
 
-// UnmarshalYAML allows us to correctly hydrate our configuration using some
-// custom logic
+// UnmarshalYAML allows us to correctly hydrate our configuration using some custom logic.
 func (c *Config) UnmarshalYAML(v *yaml.Node) (err error) {
 	type localConfig struct {
 		Log             Log               `yaml:"log"`
+		OpenTelemetry   OpenTelemetry     `yaml:"opentelemetry"`
 		Server          Server            `yaml:"server"`
 		Gitlab          Gitlab            `yaml:"gitlab"`
 		Redis           Redis             `yaml:"redis"`
@@ -191,11 +213,13 @@ func (c *Config) UnmarshalYAML(v *yaml.Node) (err error) {
 
 	_cfg := localConfig{}
 	defaults.MustSet(&_cfg)
+
 	if err = v.Decode(&_cfg); err != nil {
 		return
 	}
 
 	c.Log = _cfg.Log
+	c.OpenTelemetry = _cfg.OpenTelemetry
 	c.Server = _cfg.Server
 	c.Gitlab = _cfg.Gitlab
 	c.Redis = _cfg.Redis
@@ -208,6 +232,7 @@ func (c *Config) UnmarshalYAML(v *yaml.Node) (err error) {
 		if err = n.Decode(&p); err != nil {
 			return
 		}
+
 		c.Projects = append(c.Projects, p)
 	}
 
@@ -216,6 +241,7 @@ func (c *Config) UnmarshalYAML(v *yaml.Node) (err error) {
 		if err = n.Decode(&w); err != nil {
 			return
 		}
+
 		c.Wildcards = append(c.Wildcards, w)
 	}
 
@@ -227,19 +253,22 @@ func (c Config) ToYAML() string {
 	c.Global = Global{}
 	c.Server.Webhook.SecretToken = "*******"
 	c.Gitlab.Token = "*******"
+
 	b, err := yaml.Marshal(c)
 	if err != nil {
 		panic(err)
 	}
+
 	return string(b)
 }
 
-// Validate will throw an error if the Config parameters are whether incomplete or incorrects
+// Validate will throw an error if the Config parameters are whether incomplete or incorrects.
 func (c Config) Validate() error {
 	if validate == nil {
 		validate = validator.New()
 		_ = validate.RegisterValidation("at-least-1-project-or-wildcard", ValidateAtLeastOneProjectOrWildcard)
 	}
+
 	return validate.Struct(c)
 }
 
@@ -250,7 +279,7 @@ type SchedulerConfig struct {
 	IntervalSeconds int
 }
 
-// Log returns some logging fields to showcase the configuration to the enduser
+// Log returns some logging fields to showcase the configuration to the enduser.
 func (sc SchedulerConfig) Log() log.Fields {
 	onInit, scheduled := "no", "no"
 	if sc.OnInit {
@@ -268,25 +297,28 @@ func (sc SchedulerConfig) Log() log.Fields {
 }
 
 // ValidateAtLeastOneProjectOrWildcard implements validator.Func
-// assess that we have at least one projet or wildcard configured
+// assess that we have at least one projet or wildcard configured.
 func ValidateAtLeastOneProjectOrWildcard(v validator.FieldLevel) bool {
 	return v.Parent().FieldByName("Projects").Len() > 0 || v.Parent().FieldByName("Wildcards").Len() > 0
 }
 
-// New returns a new config with the default parameters
+// New returns a new config with the default parameters.
 func New() (c Config) {
 	defaults.MustSet(&c)
+
 	return
 }
 
-// NewProject returns a new project with the config default parameters
+// NewProject returns a new project with the config default parameters.
 func (c Config) NewProject() (p Project) {
 	p.ProjectParameters = c.ProjectDefaults
+
 	return
 }
 
-// NewWildcard returns a new wildcard with the config default parameters
+// NewWildcard returns a new wildcard with the config default parameters.
 func (c Config) NewWildcard() (w Wildcard) {
 	w.ProjectParameters = c.ProjectDefaults
+
 	return
 }

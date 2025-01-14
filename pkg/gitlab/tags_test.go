@@ -6,12 +6,13 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/schemas"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/schemas"
 )
 
 func TestGetProjectTags(t *testing.T) {
-	mux, server, c := getMockedClient()
+	ctx, mux, server, c := getMockedClient()
 	defer server.Close()
 
 	mux.HandleFunc("/api/v4/projects/foo/repository/tags",
@@ -29,7 +30,7 @@ func TestGetProjectTags(t *testing.T) {
 	p.Pull.Refs.Tags.Regexp = `^f`
 
 	expectedRef := schemas.NewRef(p, schemas.RefKindTag, "foo")
-	refs, err := c.GetProjectTags(p)
+	refs, err := c.GetProjectTags(ctx, p)
 	assert.NoError(t, err)
 	assert.Len(t, refs, 1)
 	assert.Equal(t, schemas.Refs{
@@ -38,18 +39,18 @@ func TestGetProjectTags(t *testing.T) {
 
 	// Test invalid project name
 	p.Name = "invalid"
-	_, err = c.GetProjectTags(p)
+	_, err = c.GetProjectTags(ctx, p)
 	assert.Error(t, err)
 
 	// Test invalid regexp
 	p.Name = "foo"
 	p.Pull.Refs.Tags.Regexp = `[`
-	_, err = c.GetProjectTags(p)
+	_, err = c.GetProjectTags(ctx, p)
 	assert.Error(t, err)
 }
 
 func TestGetProjectMostRecentTagCommit(t *testing.T) {
-	mux, server, c := getMockedClient()
+	ctx, mux, server, c := getMockedClient()
 	defer server.Close()
 
 	mux.HandleFunc(fmt.Sprintf("/api/v4/projects/foo/repository/tags"),
@@ -75,11 +76,11 @@ func TestGetProjectMostRecentTagCommit(t *testing.T) {
 ]`)
 		})
 
-	_, _, err := c.GetProjectMostRecentTagCommit("foo", "[")
+	_, _, err := c.GetProjectMostRecentTagCommit(ctx, "foo", "[")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "error parsing regexp")
 
-	commitShortID, commitCreatedAt, err := c.GetProjectMostRecentTagCommit("foo", "^f")
+	commitShortID, commitCreatedAt, err := c.GetProjectMostRecentTagCommit(ctx, "foo", "^f")
 	assert.NoError(t, err)
 	assert.Equal(t, "7b5c3cc", commitShortID)
 	assert.Equal(t, float64(1553540113), commitCreatedAt)

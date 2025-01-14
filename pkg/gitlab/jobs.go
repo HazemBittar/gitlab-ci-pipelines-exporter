@@ -1,33 +1,46 @@
 package gitlab
 
 import (
+	"context"
+	"reflect"
+	"strconv"
 	"strings"
 
-	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/schemas"
 	log "github.com/sirupsen/logrus"
 	goGitlab "github.com/xanzy/go-gitlab"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/schemas"
 )
 
 // ListRefPipelineJobs ..
-func (c *Client) ListRefPipelineJobs(ref schemas.Ref) (jobs []schemas.Job, err error) {
-	if ref.LatestPipeline == (schemas.Pipeline{}) {
+func (c *Client) ListRefPipelineJobs(ctx context.Context, ref schemas.Ref) (jobs []schemas.Job, err error) {
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "gitlab:ListRefPipelineJobs")
+	defer span.End()
+	span.SetAttributes(attribute.String("project_name", ref.Project.Name))
+	span.SetAttributes(attribute.String("ref_name", ref.Name))
+
+	if reflect.DeepEqual(ref.LatestPipeline, (schemas.Pipeline{})) {
 		log.WithFields(
 			log.Fields{
 				"project-name": ref.Project.Name,
 				"ref":          ref.Name,
 			},
 		).Debug("most recent pipeline not defined, exiting..")
+
 		return
 	}
 
-	jobs, err = c.ListPipelineJobs(ref.Project.Name, ref.LatestPipeline.ID)
+	jobs, err = c.ListPipelineJobs(ctx, ref.Project.Name, ref.LatestPipeline.ID)
 	if err != nil {
 		return
 	}
 
 	if ref.Project.Pull.Pipeline.Jobs.FromChildPipelines.Enabled {
 		var childJobs []schemas.Job
-		childJobs, err = c.ListPipelineChildJobs(ref.Project.Name, ref.LatestPipeline.ID)
+
+		childJobs, err = c.ListPipelineChildJobs(ctx, ref.Project.Name, ref.LatestPipeline.ID)
 		if err != nil {
 			return
 		}
@@ -39,9 +52,16 @@ func (c *Client) ListRefPipelineJobs(ref schemas.Ref) (jobs []schemas.Job, err e
 }
 
 // ListPipelineJobs ..
-func (c *Client) ListPipelineJobs(projectName string, pipelineID int) (jobs []schemas.Job, err error) {
-	var foundJobs []*goGitlab.Job
-	var resp *goGitlab.Response
+func (c *Client) ListPipelineJobs(ctx context.Context, projectNameOrID string, pipelineID int) (jobs []schemas.Job, err error) {
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "gitlab:ListPipelineJobs")
+	defer span.End()
+	span.SetAttributes(attribute.String("project_name_or_id", projectNameOrID))
+	span.SetAttributes(attribute.Int("pipeline_id", pipelineID))
+
+	var (
+		foundJobs []*goGitlab.Job
+		resp      *goGitlab.Response
+	)
 
 	options := &goGitlab.ListJobsOptions{
 		ListOptions: goGitlab.ListOptions{
@@ -51,11 +71,13 @@ func (c *Client) ListPipelineJobs(projectName string, pipelineID int) (jobs []sc
 	}
 
 	for {
-		c.rateLimit()
-		foundJobs, resp, err = c.Jobs.ListPipelineJobs(projectName, pipelineID, options)
+		c.rateLimit(ctx)
+
+		foundJobs, resp, err = c.Jobs.ListPipelineJobs(projectNameOrID, pipelineID, options, goGitlab.WithContext(ctx))
 		if err != nil {
 			return
 		}
+
 		c.requestsRemaining(resp)
 
 		for _, job := range foundJobs {
@@ -65,23 +87,32 @@ func (c *Client) ListPipelineJobs(projectName string, pipelineID int) (jobs []sc
 		if resp.CurrentPage >= resp.NextPage {
 			log.WithFields(
 				log.Fields{
-					"project-name": projectName,
-					"pipeline-id":  pipelineID,
-					"jobs-count":   resp.TotalItems,
+					"project-name-or-id": projectNameOrID,
+					"pipeline-id":        pipelineID,
+					"jobs-count":         resp.TotalItems,
 				},
 			).Debug("found pipeline jobs")
+
 			break
 		}
 
 		options.Page = resp.NextPage
 	}
+
 	return
 }
 
 // ListPipelineBridges ..
-func (c *Client) ListPipelineBridges(projectName string, pipelineID int) (bridges []*goGitlab.Bridge, err error) {
-	var foundBridges []*goGitlab.Bridge
-	var resp *goGitlab.Response
+func (c *Client) ListPipelineBridges(ctx context.Context, projectNameOrID string, pipelineID int) (bridges []*goGitlab.Bridge, err error) {
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "gitlab:ListPipelineBridges")
+	defer span.End()
+	span.SetAttributes(attribute.String("project_name_or_id", projectNameOrID))
+	span.SetAttributes(attribute.Int("pipeline_id", pipelineID))
+
+	var (
+		foundBridges []*goGitlab.Bridge
+		resp         *goGitlab.Response
+	)
 
 	options := &goGitlab.ListJobsOptions{
 		ListOptions: goGitlab.ListOptions{
@@ -91,11 +122,13 @@ func (c *Client) ListPipelineBridges(projectName string, pipelineID int) (bridge
 	}
 
 	for {
-		c.rateLimit()
-		foundBridges, resp, err = c.Jobs.ListPipelineBridges(projectName, pipelineID, options)
+		c.rateLimit(ctx)
+
+		foundBridges, resp, err = c.Jobs.ListPipelineBridges(projectNameOrID, pipelineID, options, goGitlab.WithContext(ctx))
 		if err != nil {
 			return
 		}
+
 		c.requestsRemaining(resp)
 
 		bridges = append(bridges, foundBridges...)
@@ -103,33 +136,48 @@ func (c *Client) ListPipelineBridges(projectName string, pipelineID int) (bridge
 		if resp.CurrentPage >= resp.NextPage {
 			log.WithFields(
 				log.Fields{
-					"project-name":  projectName,
-					"pipeline-id":   pipelineID,
-					"bridges-count": resp.TotalItems,
+					"project-name-or-id": projectNameOrID,
+					"pipeline-id":        pipelineID,
+					"bridges-count":      resp.TotalItems,
 				},
 			).Debug("found pipeline bridges")
+
 			break
 		}
 
 		options.Page = resp.NextPage
 	}
+
 	return
 }
 
 // ListPipelineChildJobs ..
-func (c *Client) ListPipelineChildJobs(projectName string, parentPipelineID int) (jobs []schemas.Job, err error) {
-	pipelineIDs := []int{parentPipelineID}
+func (c *Client) ListPipelineChildJobs(ctx context.Context, projectNameOrID string, parentPipelineID int) (jobs []schemas.Job, err error) {
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "gitlab:ListPipelineChildJobs")
+	defer span.End()
+	span.SetAttributes(attribute.String("project_name_or_id", projectNameOrID))
+	span.SetAttributes(attribute.Int("parent_pipeline_id", parentPipelineID))
+
+	type pipelineDef struct {
+		projectNameOrID string
+		pipelineID      int
+	}
+
+	pipelines := []pipelineDef{{projectNameOrID, parentPipelineID}}
 
 	for {
-		if len(pipelineIDs) == 0 {
+		if len(pipelines) == 0 {
 			return
 		}
 
-		pipelineID := pipelineIDs[len(pipelineIDs)-1]
-		pipelineIDs = pipelineIDs[:len(pipelineIDs)-1]
+		var (
+			foundBridges []*goGitlab.Bridge
+			pipeline     = pipelines[len(pipelines)-1]
+		)
 
-		var foundBridges []*goGitlab.Bridge
-		foundBridges, err = c.ListPipelineBridges(projectName, pipelineID)
+		pipelines = pipelines[:len(pipelines)-1]
+
+		foundBridges, err = c.ListPipelineBridges(ctx, pipeline.projectNameOrID, pipeline.pipelineID)
 		if err != nil {
 			return
 		}
@@ -142,9 +190,11 @@ func (c *Client) ListPipelineChildJobs(projectName string, parentPipelineID int)
 				continue
 			}
 
-			pipelineIDs = append(pipelineIDs, foundBridge.DownstreamPipeline.ID)
+			pipelines = append(pipelines, pipelineDef{strconv.Itoa(foundBridge.DownstreamPipeline.ProjectID), foundBridge.DownstreamPipeline.ID})
+
 			var foundJobs []schemas.Job
-			foundJobs, err = c.ListPipelineJobs(projectName, foundBridge.DownstreamPipeline.ID)
+
+			foundJobs, err = c.ListPipelineJobs(ctx, strconv.Itoa(foundBridge.DownstreamPipeline.ProjectID), foundBridge.DownstreamPipeline.ID)
 			if err != nil {
 				return
 			}
@@ -155,7 +205,12 @@ func (c *Client) ListPipelineChildJobs(projectName string, parentPipelineID int)
 }
 
 // ListRefMostRecentJobs ..
-func (c *Client) ListRefMostRecentJobs(ref schemas.Ref) (jobs []schemas.Job, err error) {
+func (c *Client) ListRefMostRecentJobs(ctx context.Context, ref schemas.Ref) (jobs []schemas.Job, err error) {
+	ctx, span := otel.Tracer(tracerName).Start(ctx, "gitlab:ListRefMostRecentJobs")
+	defer span.End()
+	span.SetAttributes(attribute.String("project_name", ref.Project.Name))
+	span.SetAttributes(attribute.String("ref_name", ref.Name))
+
 	if len(ref.LatestJobs) == 0 {
 		log.WithFields(
 			log.Fields{
@@ -163,6 +218,7 @@ func (c *Client) ListRefMostRecentJobs(ref schemas.Ref) (jobs []schemas.Job, err
 				"ref":          ref.Name,
 			},
 		).Debug("no jobs are currently held in memory, exiting..")
+
 		return
 	}
 
@@ -172,22 +228,39 @@ func (c *Client) ListRefMostRecentJobs(ref schemas.Ref) (jobs []schemas.Job, err
 		jobsToRefresh[k] = v
 	}
 
-	var foundJobs []*goGitlab.Job
-	var resp *goGitlab.Response
+	var (
+		foundJobs []*goGitlab.Job
+		resp      *goGitlab.Response
+		opt       *goGitlab.ListJobsOptions
+	)
 
-	options := &goGitlab.ListJobsOptions{
-		ListOptions: goGitlab.ListOptions{
-			Page:    1,
-			PerPage: 100,
-		},
+	keysetPagination := c.Version().PipelineJobsKeysetPaginationSupported()
+	if keysetPagination {
+		opt = &goGitlab.ListJobsOptions{
+			ListOptions: goGitlab.ListOptions{
+				Pagination: "keyset",
+				PerPage:    100,
+			},
+		}
+	} else {
+		opt = &goGitlab.ListJobsOptions{
+			ListOptions: goGitlab.ListOptions{
+				Page:    1,
+				PerPage: 100,
+			},
+		}
 	}
 
+	options := []goGitlab.RequestOptionFunc{goGitlab.WithContext(ctx)}
+
 	for {
-		c.rateLimit()
-		foundJobs, resp, err = c.Jobs.ListProjectJobs(ref.Project.Name, options)
+		c.rateLimit(ctx)
+
+		foundJobs, resp, err = c.Jobs.ListProjectJobs(ref.Project.Name, opt, options...)
 		if err != nil {
 			return
 		}
+
 		c.requestsRemaining(resp)
 
 		for _, job := range foundJobs {
@@ -207,28 +280,40 @@ func (c *Client) ListRefMostRecentJobs(ref schemas.Ref) (jobs []schemas.Job, err
 						"jobs-count":   len(ref.LatestJobs),
 					},
 				).Debug("found all jobs to refresh")
+
 				return
 			}
 		}
 
-		if resp.CurrentPage >= resp.NextPage {
+		if keysetPagination && resp.NextLink == "" ||
+			(!keysetPagination && resp.CurrentPage >= resp.NextPage) {
 			var notFoundJobs []string
+
 			for k := range jobsToRefresh {
 				notFoundJobs = append(notFoundJobs, k)
 			}
 
-			log.WithFields(
-				log.Fields{
-					"project-name":   ref.Project.Name,
-					"ref":            ref.Name,
-					"jobs-count":     resp.TotalItems,
-					"not-found-jobs": strings.Join(notFoundJobs, ","),
-				},
-			).Warn("found some ref jobs but did not manage to refresh all jobs which were in memory")
+			log.WithContext(ctx).
+				WithFields(
+					log.Fields{
+						"project-name":   ref.Project.Name,
+						"ref":            ref.Name,
+						"jobs-count":     resp.TotalItems,
+						"not-found-jobs": strings.Join(notFoundJobs, ","),
+					},
+				).
+				Warn("found some ref jobs but did not manage to refresh all jobs which were in memory")
+
 			break
 		}
 
-		options.Page = resp.NextPage
+		if keysetPagination {
+			options = []goGitlab.RequestOptionFunc{
+				goGitlab.WithContext(ctx),
+				goGitlab.WithKeysetPaginationParameters(resp.NextLink),
+			}
+		}
 	}
+
 	return
 }

@@ -7,12 +7,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/config"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/mvisonneau/gitlab-ci-pipelines-exporter/pkg/config"
 )
 
 func TestWebhookHandler(t *testing.T) {
-	c, _, srv := newTestController(config.Config{
+	_, c, _, srv := newTestController(config.Config{
 		Server: config.Server{
 			Webhook: config.ServerWebhook{
 				Enabled:     true,
@@ -22,7 +23,7 @@ func TestWebhookHandler(t *testing.T) {
 	})
 	srv.Close()
 
-	req := httptest.NewRequest("POST", "/webhook", nil)
+	req := httptest.NewRequest(http.MethodPost, "/webhook", nil)
 
 	// Test without auth token, should return a 403
 	w := httptest.NewRecorder()

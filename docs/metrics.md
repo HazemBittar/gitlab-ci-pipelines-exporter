@@ -21,20 +21,34 @@
 | `gitlab_ci_environment_deployment_status` | Status of the most recent deployment of the environment | [project], [environment], [status] | `project_defaults.pull.environments.enabled` |
 | `gitlab_ci_environment_deployment_timestamp` | Creation date of the most recent deployment of the environment | [project], [environment] | `project_defaults.pull.environments.enabled` |
 | `gitlab_ci_environment_information` | Information about the environment | [project], [environment], [environment_id], [external_url], [kind], [ref], [latest_commit_short_id], [current_commit_short_id], [available], [username] | `project_defaults.pull.environments.enabled` |
-| `gitlab_ci_pipeline_coverage` | Coverage of the most recent pipeline | [project], [topics], [ref], [kind], [variables] | *available by default* |
-| `gitlab_ci_pipeline_duration_seconds` | Duration in seconds of the most recent pipeline | [project], [topics], [ref], [kind], [variables] | *available by default* |
-| `gitlab_ci_pipeline_id` | ID of the most recent pipeline | [project], [topics], [ref], [kind], [variables] | *available by default* |
-| `gitlab_ci_pipeline_job_artifact_size_bytes` | Artifact size in bytes (sum of all of them) of the most recent job | [project], [topics], [ref], [runner_description], [kind], [variables], [stage], [job_name] | `project_defaults.pull.pipeline.jobs.enabled` |
-| `gitlab_ci_pipeline_job_duration_seconds` | Duration in seconds of the most recent job | [project], [topics], [ref], [runner_description], [kind], [variables], [stage], [job_name] | `project_defaults.pull.pipeline.jobs.enabled` |
-| `gitlab_ci_pipeline_job_id` | ID of the most recent job | [project], [topics], [ref], [runner_description], [kind], [variables], [stage], [job_name] | `project_defaults.pull.pipeline.jobs.enabled` |
-| `gitlab_ci_pipeline_job_queued_duration_seconds` | Duration in seconds the most recent job has been queued before starting | [project], [topics], [ref], [runner_description], [kind], [variables], [stage], [job_name] | `project_defaults.pull.pipeline.jobs.enabled` |
-| `gitlab_ci_pipeline_job_run_count` | Number of executions of a job | [project], [topics], [ref], [runner_description], [kind], [variables], [stage], [job_name] | `project_defaults.pull.pipeline.jobs.enabled` |
-| `gitlab_ci_pipeline_job_status` | Status of the most recent job | [project], [topics], [ref], [runner_description], [kind], [variables], [stage], [job_name], [status] | `project_defaults.pull.pipeline.jobs.enabled` |
-| `gitlab_ci_pipeline_job_timestamp` | Creation date timestamp of the the most recent job | [project], [topics], [ref], [runner_description], [kind], [variables], [stage], [job_name] | `project_defaults.pull.pipeline.jobs.enabled` |
-| `gitlab_ci_pipeline_queued_duration_seconds` | Duration in seconds the most recent pipeline has been queued before starting | [project], [topics], [ref], [kind], [variables] | *available by default* |
-| `gitlab_ci_pipeline_run_count` | Number of executions of a pipeline | [project], [topics], [ref], [kind], [variables] | *available by default* |
-| `gitlab_ci_pipeline_status` | Status of the most recent pipeline | [project], [topics], [ref], [kind], [variables], [status] | *available by default* |
-| `gitlab_ci_pipeline_timestamp` | Timestamp of the last update of the most recent pipeline | [project], [topics], [ref], [kind], [variables] | *available by default* |
+| `gitlab_ci_pipeline_coverage` | Coverage of the most recent pipeline | [project], [topics], [ref], [kind], [source], [variables] | *available by default* |
+| `gitlab_ci_pipeline_duration_seconds` | Duration in seconds of the most recent pipeline | [project], [topics], [ref], [kind], [source], [variables] | *available by default* |
+| `gitlab_ci_pipeline_id` | ID of the most recent pipeline | [project], [topics], [ref], [kind], [source], [variables] | *available by default* |
+| `gitlab_ci_pipeline_job_artifact_size_bytes` | Artifact size in bytes (sum of all of them) of the most recent job | [project], [topics], [ref], [runner_description], [kind], [source], [variables], [stage], [job_name], [tag_list], [failure_reason] | `project_defaults.pull.pipeline.jobs.enabled` |
+| `gitlab_ci_pipeline_job_duration_seconds` | Duration in seconds of the most recent job | [project], [topics], [ref], [runner_description], [kind], [source], [variables], [stage], [job_name], [tag_list], [failure_reason] | `project_defaults.pull.pipeline.jobs.enabled` |
+| `gitlab_ci_pipeline_job_id` | ID of the most recent job | [project], [topics], [ref], [runner_description], [kind], [source], [variables], [stage], [job_name], [tag_list], [failure_reason] | `project_defaults.pull.pipeline.jobs.enabled` |
+| `gitlab_ci_pipeline_job_queued_duration_seconds` | Duration in seconds the most recent job has been queued before starting | [project], [topics], [ref], [runner_description], [kind], [source], [variables], [stage], [job_name], [tag_list], [failure_reason] | `project_defaults.pull.pipeline.jobs.enabled` |
+| `gitlab_ci_pipeline_job_run_count` | Number of executions of a job | [project], [topics], [ref], [runner_description], [kind], [source], [variables], [stage], [job_name], [tag_list], [failure_reason] | `project_defaults.pull.pipeline.jobs.enabled` |
+| `gitlab_ci_pipeline_job_status` | Status of the most recent job | [project], [topics], [ref], [runner_description], [kind], [source], [variables], [stage], [job_name], [tag_list], [status], [failure_reason] | `project_defaults.pull.pipeline.jobs.enabled` |
+| `gitlab_ci_pipeline_job_timestamp` | Creation date timestamp of the the most recent job | [project], [topics], [ref], [runner_description], [kind], [source], [variables], [stage], [job_name], [tag_list], [failure_reason] | `project_defaults.pull.pipeline.jobs.enabled` |
+| `gitlab_ci_pipeline_queued_duration_seconds` | Duration in seconds the most recent pipeline has been queued before starting | [project], [topics], [ref], [kind], [source], [variables] | *available by default* |
+| `gitlab_ci_pipeline_run_count` | Number of executions of a pipeline | [project], [topics], [ref], [kind], [source], [variables] | *available by default* |
+| `gitlab_ci_pipeline_status` | Status of the most recent pipeline | [project], [topics], [ref], [kind], [source], [variables], [status] | *available by default* |
+| `gitlab_ci_pipeline_timestamp` | Timestamp of the last update of the most recent pipeline | [project], [topics], [ref], [kind], [source], [variables] | *available by default* |
+| `gitlab_ci_pipeline_test_report_total_time` | Duration in seconds of all the tests in the most recently finished pipeline | [project], [topics], [ref], [kind], [source], [variables] | `project_defaults.pull.pipeline.test_reports.enabled` |
+| `gitlab_ci_pipeline_test_report_total_count` | Number of total tests in the most recently finished pipeline | [project], [topics], [ref], [kind], [source], [variables] | `project_defaults.pull.pipeline.test_reports.enabled` |
+| `gitlab_ci_pipeline_test_report_success_count` | Number of successful tests in the most recently finished pipeline | [project], [topics], [ref], [kind], [source], [variables] | `project_defaults.pull.pipeline.test_reports.enabled` |
+| `gitlab_ci_pipeline_test_report_failed_count` | Number of failed tests in the most recently finished pipeline | [project], [topics], [ref], [kind], [source], [variables] | `project_defaults.pull.pipeline.test_reports.enabled` |
+| `gitlab_ci_pipeline_test_report_skipped_count` | Number of skipped tests in the most recently finished pipeline | [project], [topics], [ref], [kind], [source], [variables] | `project_defaults.pull.pipeline.test_reports.enabled` |
+| `gitlab_ci_pipeline_test_report_error_count` | Number of errored tests in the most recently finished pipeline | [project], [topics], [ref], [kind], [source], [variables] | `project_defaults.pull.pipeline.test_reports.enabled` |
+| `gitlab_ci_pipeline_test_suite_total_time` | Duration in seconds for the test suite | [project], [topics], [ref], [kind], [source], [variables], [test_suite_name] | `project_defaults.pull.pipeline.test_reports.enabled` |
+| `gitlab_ci_pipeline_test_suite_total_count` | Number of total tests for the test suite | [project], [topics], [ref], [kind], [source], [variables], [test_suite_name] | `project_defaults.pull.pipeline.test_reports.enabled` |
+| `gitlab_ci_pipeline_test_suite_success_count` | Number of successful tests for the test suite | [project], [topics], [ref], [kind], [source], [variables], [test_suite_name] | `project_defaults.pull.pipeline.test_reports.enabled` |
+| `gitlab_ci_pipeline_test_suite_failed_count` | Number of failed tests for the test suite | [project], [topics], [ref], [kind], [source], [variables], [test_suite_name] | `project_defaults.pull.pipeline.test_reports.enabled` |
+| `gitlab_ci_pipeline_test_suite_skipped_count` | Number of skipped tests for the test suite | [project], [topics], [ref], [kind], [source], [variables], [test_suite_name] | `project_defaults.pull.pipeline.test_reports.enabled` |
+| `gitlab_ci_pipeline_test_suite_error_count` | Duration in errored tests for the test suite | [project], [topics], [ref], [kind], [source], [variables], [test_suite_name] | `project_defaults.pull.pipeline.test_reports.enabled` |
+| `gitlab_ci_pipeline_test_case_execution_time` | Duration in seconds for the test case | [project], [topics], [ref], [kind], [source], [variables], [test_suite_name], [test_case_name], [test_case_classname] | `project_defaults.pull.pipeline.test_reports.test_cases.enabled` |
+| `gitlab_ci_pipeline_test_case_status` | Status of the most recent test case | [project], [topics], [ref], [kind], [source], [variables], [test_suite_name], [test_case_name], [test_case_classname], [status] | `project_defaults.pull.pipeline.test_reports.test_cases.enabled` |
 
 ## Labels
 
@@ -58,10 +72,29 @@ Description of the runner on which the most recent job ran
 
 Type of the ref used by the pipeline. Can be either **branch**, **tag** or **merge_request**
 
+### Source
+
+The reason the pipeline exists.
+
 ### Variables
 
 User defined variables for the pipelines.
 Those are not fetched by default, you need to set `project_defaults.pull.pipeline.variables.enabled` to **true**
+
+### Test Suite Name
+
+Name of the test suite.
+This is not fetched by default, you need to set `project_default.pull.pipeline.test_reports.enabled` to **true**
+
+### Test Case Name
+
+Name of the test case.
+This is not fetched by default, you need to set `project_default.pull.pipeline.test_reports.test_cases.enabled` to **true**
+
+### Test Case ClassName
+
+Name of the test case classname.
+This is not fetched by default, you need to set `project_default.pull.pipeline.test_reports.test_cases.enabled` to **true**
 
 ### Environment
 
@@ -89,7 +122,7 @@ GitLab username of the person which triggered the most recent deployment of the 
 
 ### Status
 
-Status of the pipeline or deployment
+Status of the pipeline, deployment or test case
 
 ### Stage
 
@@ -98,6 +131,10 @@ Stage of the job
 ### Job name
 
 Name of the job
+
+### Tag list
+
+Tag list of the job
 
 ### Environment ID
 
@@ -126,6 +163,7 @@ This flag affect every `_status$` metrics:
 - `gitlab_ci_pipeline_environment_deployment_status`
 - `gitlab_ci_pipeline_job_status`
 - `gitlab_ci_pipeline_status`
+- `gitlab_ci_pipeline_test_case_status`
 
 [available]: #available
 [current_commit_short_id]: #current-commit-short-id
@@ -133,6 +171,7 @@ This flag affect every `_status$` metrics:
 [environment_id]: #environment-id
 [external_url]: #external-url
 [job_name]: #job-name
+[tag_list]: #tag-list
 [kind]: #ref-kind
 [latest_commit_short_id]: #latest-commit-short-id
 [project]: #project
@@ -142,4 +181,8 @@ This flag affect every `_status$` metrics:
 [status]: #status
 [topics]: #topics
 [username]: #username
+[source]: #source
 [variables]: #variables
+[test_suite_name]: #test-suite-name
+[test_case_name]: #test-case-name
+[test_case_classname]: #test-case-classname
